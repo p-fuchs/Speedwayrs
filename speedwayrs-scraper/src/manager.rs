@@ -3,12 +3,12 @@ use crate::{
     season::Season,
 };
 use std::{
-    io::Write,
+    io::{BufWriter, Write},
     path::PathBuf,
     sync::{Arc, Mutex},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use scraper::Html;
 use threadpool::ThreadPool;
 
@@ -28,7 +28,7 @@ impl Manager {
         }
     }
 
-    pub fn begin_scrapping(&mut self) -> Result<()> {
+    fn read_game_sites(&self) -> Result<Vec<GameSite>> {
         // Returns a vector of seasons along with their site links.
         let seasons = Season::parse_site()?;
         let mut games = Vec::new();
@@ -41,7 +41,15 @@ impl Manager {
 
             games.append(&mut game_info);
         }
+        Ok(games)
+    }
 
+    pub fn begin_scraping(&self) -> Result<()> {
+        let output_file = std::fs::File::create(&self.output_file)
+            .context("Output file cannot be created (or opened).")?;
+        let mut writer = BufWriter::new(output_file);
+
+        let games = self.read_game_sites()?;
         let game_infos = Arc::new(Mutex::new(Vec::new()));
 
         for game in games {
@@ -84,6 +92,9 @@ impl Manager {
         let game_infos = game_infos.lock().unwrap();
         for g in game_infos.iter() {
             println!("PARSED {:?}", g);
+            if let Err(e) = write!(writer, "PARSED {g:?}") {
+                eprintln!("ERROR DURING WRITING. {e}");
+            }
         }
 
         Ok(())

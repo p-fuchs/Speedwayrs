@@ -1,6 +1,6 @@
 [workspace]
 
 members = [
-    "zuzel-scraper",
-    "zuzel-types"
+    "speedwayrs-scraper",
+    "speedwayrs-types"
 ]

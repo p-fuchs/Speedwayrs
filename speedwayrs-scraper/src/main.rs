@@ -24,8 +24,8 @@ fn main() -> Result<()> {
     let config = ProgramConfig::parse();
     http::HttpRequester::set_tick_interval(config.tick_interval())?;
 
-    let mut manager = manager::Manager::new(&config);
-    manager.begin_scrapping()?;
+    let manager = manager::Manager::new(&config);
+    manager.begin_scraping()?;
 
     Ok(())
 }

@@ -67,9 +67,15 @@ impl Player {
                 num => {
                     if num.ends_with('*') {
                         let trimmed = num.trim_end_matches('*');
-                        scores.push(PlayerScore::ScoreWithStar(trimmed.parse().map_err(|_| anyhow!("INAVLID T {trimmed}"))?));
+                        scores.push(PlayerScore::ScoreWithStar(
+                            trimmed
+                                .parse()
+                                .map_err(|_| anyhow!("INAVLID T {trimmed}"))?,
+                        ));
                     } else {
-                        scores.push(PlayerScore::Score(num.parse().map_err(|_| anyhow!("INVALID {num}"))?))
+                        scores.push(PlayerScore::Score(
+                            num.parse().map_err(|_| anyhow!("INVALID {num}"))?,
+                        ))
                     }
                 }
             }
@@ -82,24 +88,4 @@ impl Player {
             scores,
         })
     }
-}
-
-#[test]
-fn tak() {
-    let x = include_str!("../../mecz.tmp");
-
-    let parsed = Html::parse_document(x);
-    let selector = Selector::parse(
-        ".coveragetab__speedwaytables > div:nth-child(1) > table:nth-child(2) > tbody:nth-child(2)",
-    )
-    .unwrap();
-
-    let x = parsed.select(&selector).next().unwrap();
-    let selp = Selector::parse("tr").unwrap();
-
-    for player_data in x.select(&selp) {
-        println!("PARSED {:?}", Player::parse_player(player_data));
-    }
-
-    // parse_player(parsed);
 }
