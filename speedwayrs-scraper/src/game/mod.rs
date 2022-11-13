@@ -1,4 +1,4 @@
-mod player;
+mod team;
 
 use anyhow::{Context, Result};
 use once_cell::sync::OnceCell;

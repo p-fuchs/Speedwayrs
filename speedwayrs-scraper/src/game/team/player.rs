@@ -7,6 +7,7 @@ use scraper::{ElementRef, Html, Selector};
 pub enum PlayerScore {
     Score(u8),
     ScoreWithStar(u8),
+    Fall,
     Reserve,
     None,
 }
@@ -61,16 +62,18 @@ impl Player {
                 break;
             }
 
+            println!("INNER {}", match_score.inner_html().trim());
             match match_score.inner_html().trim() {
                 "" => scores.push(PlayerScore::None),
                 "-" => scores.push(PlayerScore::Reserve),
+                "u" | "U" => scores.push(PlayerScore::Fall),
                 num => {
                     if num.ends_with('*') {
                         let trimmed = num.trim_end_matches('*');
                         scores.push(PlayerScore::ScoreWithStar(
                             trimmed
                                 .parse()
-                                .map_err(|_| anyhow!("INAVLID T {trimmed}"))?,
+                                .map_err(|_| anyhow!("INVALID T {trimmed}"))?,
                         ));
                     } else {
                         scores.push(PlayerScore::Score(
