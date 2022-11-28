@@ -64,7 +64,8 @@ impl Manager {
                         game_infos_lock.push(Err(e));
                     }
                     Ok(source) => {
-                        let game_info = ScraperGameInfo::parse_site(&source, game.url());
+                        let game_info = ScraperGameInfo::parse_site(&source);
+                        println!("{game_info:?}");
                         game_infos_lock.push(game_info);
                     }
                 }

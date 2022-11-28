@@ -3,13 +3,37 @@ use std::io::Write;
 use anyhow::{anyhow, Result};
 use scraper::{ElementRef, Html, Selector};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PlayerScore {
     Score(u8),
     ScoreWithStar(u8),
     Fall,
     Reserve,
+    Resign,
     None,
+}
+
+impl PlayerScore {
+    pub fn parse(text: &str) -> Result<Self> {
+        Ok(match text.trim() {
+            "" => PlayerScore::None,
+            "-" => PlayerScore::Reserve,
+            "u" | "U" | "w" => PlayerScore::Fall,
+            "d" => PlayerScore::Resign,
+            num => {
+                if num.ends_with('*') {
+                    let trimmed = num.trim_end_matches('*');
+                    PlayerScore::ScoreWithStar(
+                        trimmed
+                            .parse()
+                            .map_err(|_| anyhow!("INVALID T {trimmed}"))?,
+                    )
+                } else {
+                    PlayerScore::Score(num.parse().map_err(|_| anyhow!("INVALID {num}"))?)
+                }
+            }
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -21,7 +45,47 @@ pub struct Player {
     scores: Vec<PlayerScore>,
 }
 
+pub struct PlayerSumScore {
+    base: u16,
+    bonus: Option<u16>,
+}
+
+impl PlayerSumScore {
+    pub fn new(base: u16, bonus: Option<u16>) -> Self {
+        Self { base, bonus }
+    }
+
+    pub fn base(&self) -> u16 {
+        self.base
+    }
+
+    pub fn bonus(&self) -> Option<u16> {
+        self.bonus
+    }
+}
+
 impl Player {
+    pub fn sum_score(&self) -> PlayerSumScore {
+        let mut sum = 0;
+        let mut bonus_sum = 0;
+        for score in self.scores.iter() {
+            match score {
+                PlayerScore::Score(score) => sum += *score as u16,
+                PlayerScore::ScoreWithStar(score) => {
+                    sum += *score as u16;
+                    bonus_sum += 1;
+                }
+                _ => {}
+            }
+        }
+
+        if bonus_sum == 0 {
+            PlayerSumScore::new(sum, None)
+        } else {
+            PlayerSumScore::new(sum, Some(bonus_sum))
+        }
+    }
+
     pub fn parse_player(element: ElementRef) -> Result<Player> {
         let info_selector = Selector::parse("td").unwrap();
 
@@ -62,26 +126,7 @@ impl Player {
                 break;
             }
 
-            println!("INNER {}", match_score.inner_html().trim());
-            match match_score.inner_html().trim() {
-                "" => scores.push(PlayerScore::None),
-                "-" => scores.push(PlayerScore::Reserve),
-                "u" | "U" => scores.push(PlayerScore::Fall),
-                num => {
-                    if num.ends_with('*') {
-                        let trimmed = num.trim_end_matches('*');
-                        scores.push(PlayerScore::ScoreWithStar(
-                            trimmed
-                                .parse()
-                                .map_err(|_| anyhow!("INVALID T {trimmed}"))?,
-                        ));
-                    } else {
-                        scores.push(PlayerScore::Score(
-                            num.parse().map_err(|_| anyhow!("INVALID {num}"))?,
-                        ))
-                    }
-                }
-            }
+            scores.push(PlayerScore::parse(&match_score.inner_html())?);
         }
 
         Ok(Player {

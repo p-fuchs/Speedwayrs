@@ -1,9 +1,12 @@
+mod run;
 mod team;
 
 use anyhow::{Context, Result};
 use once_cell::sync::OnceCell;
 use regex::Regex;
 use scraper::{Html, Selector};
+
+use self::{run::Run, team::Team};
 
 #[derive(Debug)]
 pub struct GameSite {
@@ -41,10 +44,9 @@ impl GameSite {
 
 #[derive(Debug)]
 pub struct ScraperGameInfo {
-    team1: String,
-    score1: u32,
-    team2: String,
-    score2: u32,
+    team1: Team,
+    team2: Team,
+    runs: Vec<Run>,
 }
 
 fn parse_score(score_inner_html: &str) -> Result<(u32, u32)> {
@@ -70,40 +72,12 @@ fn parse_score(score_inner_html: &str) -> Result<(u32, u32)> {
 }
 
 impl ScraperGameInfo {
-    pub fn parse_site(body: &str, url: &str) -> Result<Self> {
+    pub fn parse_site(body: &str) -> Result<Self> {
         let parsed_body = Html::parse_document(body);
 
-        let team_selector = Selector::parse(".matchcoverage__name").unwrap();
-        let mut selected_teams = parsed_body.select(&team_selector);
+        let (team1, team2) = Team::parse_teams(&parsed_body)?;
+        let runs = run::run_iterator(&parsed_body).collect();
 
-        let team1 = selected_teams
-            .next()
-            .with_context(|| format!("Unable to get info about first team on site [{}].", url))?
-            .inner_html()
-            .trim()
-            .to_string();
-
-        let team2 = selected_teams
-            .next()
-            .with_context(|| format!("Unable to get info about second team on site [{}].", url))?
-            .inner_html()
-            .trim()
-            .to_string();
-
-        let score_selector = Selector::parse(".matchcoverage__result").unwrap();
-        let score_inner_html = parsed_body
-            .select(&score_selector)
-            .next()
-            .with_context(|| format!("Unable to get score at site [{}].", url))?
-            .inner_html();
-
-        let (score1, score2) = parse_score(&score_inner_html)?;
-
-        Ok(Self {
-            team1,
-            score1,
-            team2,
-            score2,
-        })
+        Ok(Self { team1, team2, runs })
     }
 }
