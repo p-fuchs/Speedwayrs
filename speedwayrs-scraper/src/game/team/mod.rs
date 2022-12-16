@@ -9,8 +9,10 @@ pub use player::PlayerScore;
 use scraper::ElementRef;
 use scraper::Html;
 use scraper::Selector;
+use serde::Deserialize;
+use serde::Serialize;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Team {
     name: String,
     points: u16,

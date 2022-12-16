@@ -2,5 +2,6 @@
 
 members = [
     "speedwayrs-scraper",
-    "speedwayrs-types"
+    "speedwayrs-types",
+    "speedwayrs-frontend"
 ]

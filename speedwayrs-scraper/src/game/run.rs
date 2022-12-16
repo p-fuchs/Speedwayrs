@@ -2,12 +2,13 @@ use anyhow::{Context, Result};
 use once_cell::sync::OnceCell;
 use regex::Regex;
 use scraper::{element_ref::Select, selector::Selector, ElementRef, Html};
+use serde::{Serialize, Deserialize};
 
 use super::team::PlayerScore;
 
 const RUN_COUNT: u8 = 15;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Helmet {
     Red,
     Yellow,
@@ -31,22 +32,22 @@ impl Helmet {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerRunScore {
     name: String,
     score: PlayerScore,
     helmet: Option<Helmet>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Run {
     number: u8,
-    time: (u16, u8),
+    time: Option<(u16, u8)>,
     player_score: Vec<PlayerRunScore>,
 }
 
 impl Run {
-    pub fn new(number: u8, time: (u16, u8), player_score: Vec<PlayerRunScore>) -> Self {
+    pub fn new(number: u8, time: Option<(u16, u8)>, player_score: Vec<PlayerRunScore>) -> Self {
         Self {
             number,
             time,
@@ -59,10 +60,11 @@ struct RunIterator<'a> {
     remaining: u8,
     players: Select<'a, 'static>,
     time: Select<'a, 'static>,
+    site: String
 }
 
 impl<'a> RunIterator<'a> {
-    fn new(parsed_body: &'a Html) -> Self {
+    fn new(parsed_body: &'a Html, site: &str) -> Self {
         let parsed_body = parsed_body.select(run_list_selector()).next().unwrap();
         let players = parsed_body.select(player_selector());
         let time = parsed_body.select(time_selector());
@@ -71,12 +73,18 @@ impl<'a> RunIterator<'a> {
             remaining: RUN_COUNT,
             players,
             time,
+            site: site.to_string()
         }
     }
 }
 
-fn parse_time(text: &str) -> (u16, u8) {
+fn parse_time(text: &str) -> Option<(u16, u8)> {
+    eprintln!("TIME: {:?}", text);
     static TIME_REGEX: OnceCell<Regex> = OnceCell::new();
+
+    if text.len() == 0 {
+        return None;
+    }
 
     let regex = TIME_REGEX
         .get_or_init(|| Regex::new(r#"(?P<secs>\d+)(.(?P<ten_mills>\d+))? sek."#).unwrap());
@@ -85,7 +93,7 @@ fn parse_time(text: &str) -> (u16, u8) {
         .with_context(|| format!("Unable to parse {text}"))
         .unwrap();
 
-    (
+    Some((
         captures.name("secs").unwrap().as_str().parse().unwrap(),
         captures
             .name("ten_mills")
@@ -93,7 +101,7 @@ fn parse_time(text: &str) -> (u16, u8) {
             .unwrap_or("0")
             .parse()
             .unwrap(),
-    )
+    ))
 }
 
 fn parse_name(text: &str) -> String {
@@ -167,6 +175,7 @@ impl<'a> Iterator for RunIterator<'a> {
         self.remaining -= 1;
 
         let time = self.time.next().unwrap();
+        eprintln!("TIME ELEMENT: {:?} ON SITE {:?}", time.html(), self.site);
         let time = parse_time(&time.inner_html());
 
         let mut players_score = Vec::new();
@@ -179,8 +188,8 @@ impl<'a> Iterator for RunIterator<'a> {
     }
 }
 
-pub fn run_iterator<'a>(parsed_body: &'a Html) -> impl Iterator<Item = Run> + 'a {
-    RunIterator::new(parsed_body)
+pub fn run_iterator<'a>(parsed_body: &'a Html, site: &str) -> impl Iterator<Item = Run> + 'a {
+    RunIterator::new(parsed_body, site)
 }
 
 fn player_name_selector() -> &'static Selector {
@@ -233,8 +242,8 @@ mod tests {
         let time = "56.12 sek.";
         let parsed_time = super::parse_time(time);
 
-        assert!(parsed_time.0 == 56);
-        assert!(parsed_time.1 == 12);
+        assert!(parsed_time.unwrap().0 == 56);
+        assert!(parsed_time.unwrap().1 == 12);
     }
 
     #[test]
@@ -266,11 +275,11 @@ mod tests {
         "#;
 
         let html = Html::parse_fragment(site_fragment);
-        let mut iter = run_iterator(&html);
+        let mut iter = run_iterator(&html, "a");
 
         let run = iter.next().context("Run iterator does not work").unwrap();
 
-        assert_eq!(run.time, (56, 12));
+        assert_eq!(run.time.unwrap(), (56, 12));
         assert_eq!(run.number, 15);
         assert_eq!(run.player_score[1].name, "Adam Test");
         assert_eq!(run.player_score[2].score, PlayerScore::Score(7));

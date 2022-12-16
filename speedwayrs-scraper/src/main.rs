@@ -3,6 +3,7 @@ mod game;
 mod http;
 mod manager;
 mod season;
+mod file;
 
 const MAIN_SITE: &str = "https://sportowefakty.wp.pl/zuzel/pge-ekstraliga/terminarz";
 const RELATIVE_MAIN: &str = "/zuzel/pge-ekstraliga/terminarz";
@@ -23,6 +24,8 @@ const REQUEST_PAUSE_DURATION: Duration = Duration::from_millis(50);
 fn main() -> Result<()> {
     let config = ProgramConfig::parse();
     http::HttpRequester::set_tick_interval(config.tick_interval())?;
+
+    file::check_folder(config.output_folder())?;
 
     let manager = manager::Manager::new(&config);
     manager.begin_scraping()?;

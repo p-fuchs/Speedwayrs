@@ -5,6 +5,7 @@ use anyhow::{Context, Result};
 use once_cell::sync::OnceCell;
 use regex::Regex;
 use scraper::{Html, Selector};
+use serde::{Serialize, Deserialize};
 
 use self::{run::Run, team::Team};
 
@@ -42,7 +43,7 @@ impl GameSite {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ScraperGameInfo {
     team1: Team,
     team2: Team,
@@ -72,11 +73,11 @@ fn parse_score(score_inner_html: &str) -> Result<(u32, u32)> {
 }
 
 impl ScraperGameInfo {
-    pub fn parse_site(body: &str) -> Result<Self> {
+    pub fn parse_site(body: &str, site: &str) -> Result<Self> {
         let parsed_body = Html::parse_document(body);
 
         let (team1, team2) = Team::parse_teams(&parsed_body)?;
-        let runs = run::run_iterator(&parsed_body).collect();
+        let runs = run::run_iterator(&parsed_body, site).collect();
 
         Ok(Self { team1, team2, runs })
     }

@@ -2,8 +2,9 @@ use std::io::Write;
 
 use anyhow::{anyhow, Result};
 use scraper::{ElementRef, Html, Selector};
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum PlayerScore {
     Score(u8),
     ScoreWithStar(u8),
@@ -36,7 +37,7 @@ impl PlayerScore {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Player {
     name: String,
     surname: String,
