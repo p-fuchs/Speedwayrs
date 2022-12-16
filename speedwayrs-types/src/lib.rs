@@ -7,21 +7,29 @@ pub struct MatchResult {
     score_2: u32,
 
     rounds: u8,
-    
 
-    team_1_squad: Vec<Player>,
-    team_2_squad: Vec<Player>
+    team_one: Team,
+    team_two: Team,
+}
+
+pub struct Team {
+    name: String,
+    points: u16,
+    players: Vec<Player>,
 }
 
 pub enum PlayerResult {
-    Crossed,
-    Scored(u32),
-    ScoredWithStar(u32)
+    Score(u8),
+    ScoreWithStar(u8),
+    Fall,
+    Reserve,
+    None,
 }
 
 pub struct Player {
     name: String,
     surname: String,
+    number: u32,
 
-    scores: HashMap<u8, PlayerResult>
+    scores: HashMap<u8, PlayerResult>,
 }

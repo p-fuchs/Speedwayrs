@@ -22,7 +22,11 @@ regex = "1.6.0"
 once_cell = "1.16.0"
 
 # COMMAND LINE ARGUMENT PARSER
-clap = {version = "4.0.18", features = ["derive"]}
+clap = {version = "4.0.29", features = ["derive"]}
 
 # THREADPOOL
 threadpool = "1.8.1"
+
+# SERIALIZATION
+serde = {version = "1.0.148", features = ["derive"]}
+serde_json = "1.0.89"

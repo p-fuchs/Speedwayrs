@@ -1,14 +1,14 @@
 use crate::{
-    game::{self, GameSite, ScraperGameInfo},
+    game::{GameSite, ScraperGameInfo},
     season::Season,
 };
 use std::{
-    io::Write,
+    io::{BufWriter, Write},
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{mpsc::Receiver}, fs::File,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use scraper::Html;
 use threadpool::ThreadPool;
 
@@ -17,18 +17,20 @@ use crate::http::HttpRequester;
 
 pub struct Manager {
     pool: ThreadPool,
-    output_file: PathBuf,
+    output_folder: PathBuf,
 }
+
+const FILE_NAME: &'static str = "scraping_result.json";
 
 impl Manager {
     pub fn new(config: &ProgramConfig) -> Self {
         Self {
             pool: ThreadPool::new(config.concurrency()),
-            output_file: config.output_file(),
+            output_folder: config.output_folder(),
         }
     }
 
-    pub fn begin_scrapping(&mut self) -> Result<()> {
+    fn read_game_sites(&self) -> Result<Vec<GameSite>> {
         // Returns a vector of seasons along with their site links.
         let seasons = Season::parse_site()?;
         let mut games = Vec::new();
@@ -41,50 +43,58 @@ impl Manager {
 
             games.append(&mut game_info);
         }
+        
+        Ok(games)
+    }
 
-        let game_infos = Arc::new(Mutex::new(Vec::new()));
+    pub fn begin_scraping(&self) -> Result<()> {
+        let mut file_path = self.output_folder.clone();
+        file_path.push(FILE_NAME);
+
+        let file_link = std::fs::File::create(file_path)
+            .context("Unable to create file with parsing results.")?;
+
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        let saving_job = |file: File, receiver: Receiver<Result<ScraperGameInfo>>| {
+            let mut file_buffer = BufWriter::new(file);
+
+            while let Ok(info) = receiver.recv() {
+                if let Ok(info_ok) = info {
+                    let serialized_info = serde_json::to_string_pretty(&info_ok).unwrap();
+
+                    if let Err(e) = file_buffer.write_all(serialized_info.as_bytes()) {
+                        eprintln!("ERROR: While reading to file = [{:?}]", e);
+                    }
+                }
+            }
+
+            let _ = file_buffer.flush();
+        };
+
+        std::thread::spawn(move || saving_job(file_link, rx));
+
+        let games = self.read_game_sites()?;
 
         for game in games {
-            let game_infos_clone = game_infos.clone();
+            let tx_clone = tx.clone();
 
             self.pool.execute(move || {
                 let game_source = HttpRequester::make_request(game.url());
 
-                let mut game_infos_lock = game_infos_clone.lock().unwrap();
                 match game_source {
                     Err(e) => {
-                        game_infos_lock.push(Err(e));
+                        tx_clone.send(Err(e)).unwrap();
                     }
                     Ok(source) => {
                         let game_info = ScraperGameInfo::parse_site(&source, game.url());
-                        game_infos_lock.push(game_info);
+                        tx_clone.send(game_info).unwrap();
                     }
                 }
             });
         }
 
-        // TODO: Usunąć
-        {
-            let gi_cl = game_infos.clone();
-            std::thread::spawn(move || loop {
-                std::thread::sleep(std::time::Duration::from_secs(5));
-                let gi_lock = gi_cl.lock().unwrap();
-
-                println!(
-                    "ACTUAL GAMES PARSED: {}. LAST: {:?}",
-                    gi_lock.len(),
-                    gi_lock.iter().next()
-                );
-                let _ = std::io::stdout().flush();
-            });
-        }
-
         self.pool.join();
-
-        let game_infos = game_infos.lock().unwrap();
-        for g in game_infos.iter() {
-            println!("PARSED {:?}", g);
-        }
 
         Ok(())
     }

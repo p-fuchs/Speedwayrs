@@ -9,9 +9,9 @@ pub struct ProgramConfig {
     #[arg(default_value_t = 2, long, value_name = "THREADS")]
     concurrency: usize,
 
-    /// Location of output file
+    /// Location of output files
     #[arg(long, short = 'o', required = true, value_name = "OUT_FILE")]
-    output_file: PathBuf,
+    output_folder: PathBuf,
 
     /// Minimal duration between sending HTTP requests (in milliseconds as integer number).
     #[arg(long, short = 'i', value_name = "INTERVAL", default_value_t = 100)]
@@ -25,8 +25,8 @@ impl ProgramConfig {
     }
 
     /// Returns path to output file.
-    pub fn output_file(&self) -> PathBuf {
-        self.output_file.clone()
+    pub fn output_folder(&self) -> PathBuf {
+        self.output_folder.clone()
     }
 
     /// Returns required interval between http requests.
