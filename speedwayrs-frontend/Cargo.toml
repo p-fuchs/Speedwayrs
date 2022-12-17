@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 log = "0.4.17"
 wasm-logger="0.2.0"
-dioxus = {version = "0.2.4", features = ["web", "router"]}
+sycamore = "0.8.2"
+sycamore-router = "0.8.0"
