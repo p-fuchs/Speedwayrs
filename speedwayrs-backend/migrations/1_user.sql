@@ -1,7 +1,6 @@
-CREATE TABLE users
+CREATE TABLE IF NOT EXISTS users
 (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    username VARCHAR(50) NOT NULL UNIQUE,
+    username VARCHAR(50) PRIMARY KEY,
     password_hash TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE 
 );

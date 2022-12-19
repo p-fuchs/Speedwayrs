@@ -1,4 +1,5 @@
 mod account;
+mod session;
 
 use std::{net::SocketAddr, sync::Arc};
 
@@ -9,6 +10,7 @@ use axum::{
 };
 use sqlx::{postgres::PgPoolOptions, PgPool};
 
+// Its data should be before Arc in order to safely clone to middleware.
 #[derive(Clone)]
 pub struct AppData {
     database_pool: Arc<PgPool>,
@@ -51,7 +53,16 @@ async fn main() -> Result<()> {
 
     let router = Router::new()
         .nest("/users", account::users_router())
+        .nest("/session", session::session_router())
+        .layer(axum::middleware::from_fn_with_state(
+            app_data.clone(),
+            session::session_management,
+        ))
         .with_state(app_data)
+        .layer(tower_http::cors::CorsLayer::very_permissive()
+        //.allow_origin("http://127.0.0.1/".parse::<http::HeaderValue>().unwrap())
+        .allow_credentials(true)
+        )
         .layer(tower_http::trace::TraceLayer::new_for_http());
 
     let address = "127.0.0.1:47123".parse().unwrap();

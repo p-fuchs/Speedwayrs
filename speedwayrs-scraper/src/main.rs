@@ -1,9 +1,9 @@
 mod config;
+mod file;
 mod game;
 mod http;
 mod manager;
 mod season;
-mod file;
 
 const MAIN_SITE: &str = "https://sportowefakty.wp.pl/zuzel/pge-ekstraliga/terminarz";
 const RELATIVE_MAIN: &str = "/zuzel/pge-ekstraliga/terminarz";

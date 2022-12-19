@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher};
 use axum::{
@@ -9,8 +9,10 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use uuid::Uuid;
 
 use crate::AppData;
 
@@ -37,6 +39,7 @@ struct SignupForm {
 }
 
 #[derive(Serialize)]
+#[serde(tag = "type")]
 enum RegisterError {
     FieldTaken {
         username_taken: bool,
@@ -148,10 +151,11 @@ impl IntoResponse for LoginError {
 
 async fn login(
     State(pg_pool): State<Arc<PgPool>>,
+    mut jar: CookieJar,
     Json(form): Json<LoginForm>,
-) -> Result<StatusCode, LoginError> {
+) -> impl IntoResponse {
     if form.username.len() > USERNAME_MAX_LEN {
-        return Err(LoginError::InvalidField);
+        return LoginError::InvalidField.into_response();
     }
 
     let query_result: Result<Option<_>, sqlx::Error> =
@@ -163,7 +167,7 @@ async fn login(
         Err(e) => {
             tracing::error!("Database unsuspected error: {e:?}.");
 
-            Err(LoginError::ServerError)
+            LoginError::ServerError.into_response()
         }
         Ok(possible_row) => match possible_row {
             Some(row) => {
@@ -176,18 +180,61 @@ async fn login(
                 );
 
                 if hash.verify_password(&[&hasher], &form.password).is_err() {
-                    Err(LoginError::InvalidField)
+                    LoginError::InvalidField.into_response()
                 } else {
-                    Ok(StatusCode::OK)
+                    let mut session_cookie = jar
+                        .get(crate::session::SESSION_COOKIE)
+                        .expect("Session middleware failed - unable to find session cookie.")
+                        .clone();
+
+                    let session_uuid = Uuid::from_str(session_cookie.value())
+                        .expect("Invalid Uuid - session middleware failed.");
+
+                    match crate::session::login_session(&pg_pool, &session_uuid, &form.username)
+                        .await
+                    {
+                        Ok(expiration) => {
+                            jar = jar.remove(session_cookie.clone());
+
+                            session_cookie.set_expires(expiration);
+
+                            (jar.add(session_cookie), StatusCode::OK).into_response()
+                        }
+                        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+                    }
                 }
             }
-            None => Err(LoginError::InvalidField),
+            None => LoginError::InvalidField.into_response(),
         },
+    }
+}
+
+async fn logout(State(pg_pool): State<Arc<PgPool>>, jar: CookieJar) -> impl IntoResponse {
+    let session_id_str = jar.get(crate::session::SESSION_COOKIE)
+        .expect("Middleware is not working - no session cookie.").value();
+
+    let session_id = Uuid::parse_str(session_id_str)
+        .expect("Middleware is not working - cannot parse uuid.");
+
+    let query = sqlx::query_file!("queries/session_logout.sql", session_id)
+        .execute(pg_pool.as_ref())
+        .await;
+
+    match query {
+        Ok(_) => {
+            StatusCode::OK
+        }
+        Err(e) => {
+            tracing::error!("Database returned error: {:?}.", e);
+
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
     }
 }
 
 pub fn users_router() -> Router<AppData> {
     Router::new()
-        .route("/", post(register))
-        .route("/", get(login))
+        .route("/signup", post(register))
+        .route("/login", post(login))
+        .route("/logout", post(logout))
 }

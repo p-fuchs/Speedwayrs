@@ -3,9 +3,10 @@ use crate::{
     season::Season,
 };
 use std::{
+    fs::File,
     io::{BufWriter, Write},
     path::PathBuf,
-    sync::{mpsc::Receiver}, fs::File,
+    sync::mpsc::Receiver,
 };
 
 use anyhow::{Context, Result};
@@ -43,7 +44,7 @@ impl Manager {
 
             games.append(&mut game_info);
         }
-        
+
         Ok(games)
     }
 
