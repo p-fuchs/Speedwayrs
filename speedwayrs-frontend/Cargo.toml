@@ -8,5 +8,21 @@ edition = "2021"
 [dependencies]
 log = "0.4.17"
 wasm-logger="0.2.0"
-sycamore = "0.8.2"
+sycamore = {version="0.8.2", features = ["suspense"]}
 sycamore-router = "0.8.0"
+gloo-net = {version = "0.2.5", features = ["http"]}
+serde = {version = "1.0.151", features = ["derive"]}
+serde_json = "1.0.89"
+once_cell = "1.16.0"
+const_format = "0.2.30"
+
+cookie = {version="0.16.2", features = ["percent-encode"]}
+url = "2.3.1"
+
+http = "0.2.8"
+
+# Password strength
+zxcvbn = "2.2.1"
+
+# For blocking future execution
+futures = "0.3.25"

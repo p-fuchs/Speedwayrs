@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use once_cell::sync::OnceCell;
 use regex::Regex;
 use scraper::{element_ref::Select, selector::Selector, ElementRef, Html};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::team::PlayerScore;
 
@@ -60,7 +60,7 @@ struct RunIterator<'a> {
     remaining: u8,
     players: Select<'a, 'static>,
     time: Select<'a, 'static>,
-    site: String
+    site: String,
 }
 
 impl<'a> RunIterator<'a> {
@@ -73,7 +73,7 @@ impl<'a> RunIterator<'a> {
             remaining: RUN_COUNT,
             players,
             time,
-            site: site.to_string()
+            site: site.to_string(),
         }
     }
 }

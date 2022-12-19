@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use once_cell::sync::OnceCell;
 use regex::Regex;
 use scraper::{Html, Selector};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use self::{run::Run, team::Team};
 

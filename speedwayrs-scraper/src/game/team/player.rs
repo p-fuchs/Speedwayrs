@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{anyhow, Result};
 use scraper::{ElementRef, Html, Selector};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum PlayerScore {
