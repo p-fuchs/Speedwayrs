@@ -6,6 +6,7 @@ use once_cell::sync::OnceCell;
 use regex::Regex;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
+use time::{macros::format_description, Month};
 
 use self::{run::Run, team::Team};
 
@@ -47,6 +48,8 @@ impl GameSite {
 pub struct ScraperGameInfo {
     team1: Team,
     team2: Team,
+    stadium: String,
+    date: time::PrimitiveDateTime,
     runs: Vec<Run>,
 }
 
@@ -73,12 +76,108 @@ fn parse_score(score_inner_html: &str) -> Result<(u32, u32)> {
 }
 
 impl ScraperGameInfo {
+    fn parse_stadium(parsed_body: &Html) -> Result<String> {
+        static SELECTOR: OnceCell<Selector> = OnceCell::new();
+
+        let selector = SELECTOR.get_or_init(|| {
+            Selector::parse("ul.bdcd > li:nth-child(3) > span:nth-child(2) > a:nth-child(1)")
+                .unwrap()
+        });
+
+        let stadium = parsed_body
+            .select(selector)
+            .next()
+            .context("Unable to select stadium")?;
+
+        Ok(stadium.inner_html())
+    }
+
+    fn parse_date(parsed_body: &Html) -> Result<time::PrimitiveDateTime> {
+        static SELECTOR: OnceCell<Selector> = OnceCell::new();
+
+        let selector = SELECTOR.get_or_init(|| {
+            Selector::parse("ul.bdcd > li:nth-child(2) > span:nth-child(2)").unwrap()
+        });
+
+        let date = parsed_body
+            .select(selector)
+            .next()
+            .context("Unable to select date.")?
+            .inner_html();
+
+        let mut splitted_date = date.split_ascii_whitespace();
+
+        let day = splitted_date
+            .next()
+            .unwrap()
+            .parse()
+            .context("Unable to parse day.")?;
+        let month = splitted_date.next().unwrap();
+        let year = splitted_date
+            .next()
+            .unwrap()
+            .trim_end_matches(',')
+            .parse()
+            .context("Unable to parse year.")?;
+        let time = splitted_date.next().unwrap();
+
+        let month = {
+            match month.to_ascii_lowercase().as_str() {
+                "stycznia" => Month::January,
+                "lutego" => Month::February,
+                "marca" => Month::March,
+                "kwietnia" => Month::April,
+                "maja" => Month::May,
+                "czerwca" => Month::June,
+                "lipca" => Month::July,
+                "sierpnia" => Month::August,
+                "września" => Month::September,
+                "października" => Month::October,
+                "listopada" => Month::November,
+                "grudnia" => Month::December,
+                other => {
+                    panic!("Month {other} is not parsable.");
+                }
+            }
+        };
+
+        let mut time_splitter = time.split_terminator(':');
+
+        let hour = time_splitter
+            .next()
+            .unwrap()
+            .parse()
+            .context("Unable to parse hour.")?;
+        let minute = time_splitter
+            .next()
+            .unwrap()
+            .parse()
+            .context("Unable to parse minutes.")?;
+        let time = time::Time::from_hms(hour, minute, 0).unwrap();
+
+        let date = time::Date::from_calendar_date(year, month, day)
+            .context("Unable to create date-time.")?;
+
+        Ok(time::PrimitiveDateTime::new(date, time))
+    }
+
     pub fn parse_site(body: &str, site: &str) -> Result<Self> {
         let parsed_body = Html::parse_document(body);
 
-        let (team1, team2) = Team::parse_teams(&parsed_body)?;
+        let (team1, team2) = Team::parse_teams(&parsed_body)
+            .with_context(|| format!("Program with team parsing at site {:?}.", site))?;
         let runs = run::run_iterator(&parsed_body, site).collect();
+        let stadium = Self::parse_stadium(&parsed_body)
+            .with_context(|| format!("Program with stadium parsing at site {:?}.", site))?;
+        let date = Self::parse_date(&parsed_body)
+            .with_context(|| format!("Program with date parsing at site {:?}.", site))?;
 
-        Ok(Self { team1, team2, runs })
+        Ok(Self {
+            team1,
+            team2,
+            runs,
+            stadium,
+            date,
+        })
     }
 }

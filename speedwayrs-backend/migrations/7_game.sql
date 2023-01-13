@@ -1,0 +1,9 @@
+CREATE TABLE game (
+    game_id SERIAL NOT NULL PRIMARY KEY,
+    team_1 INTEGER REFERENCES team NOT NULL,
+    team_2 INTEGER REFERENCES team NOT NULL,
+    place INTEGER REFERENCES stadium NOT NULL,
+    game_date TIMESTAMPTZ NOT NULL,
+
+    CONSTRAINT game_teams CHECK (NOT team_1 = team_2)
+);

@@ -6,10 +6,11 @@ use std::{
     fs::File,
     io::{BufWriter, Write},
     path::PathBuf,
-    sync::mpsc::Receiver,
+    sync::{mpsc::Receiver, RwLock, Arc},
 };
 
 use anyhow::{Context, Result};
+use indicatif::{ProgressStyle, ProgressState, ProgressBar};
 use scraper::Html;
 use threadpool::ThreadPool;
 
@@ -49,6 +50,9 @@ impl Manager {
     }
 
     pub fn begin_scraping(&self) -> Result<()> {
+        let count = Arc::new(RwLock::new(0));
+        let end = Arc::new(RwLock::new(false));
+
         let mut file_path = self.output_folder.clone();
         file_path.push(FILE_NAME);
 
@@ -57,7 +61,9 @@ impl Manager {
 
         let (tx, rx) = std::sync::mpsc::channel();
 
-        let saving_job = |file: File, receiver: Receiver<Result<ScraperGameInfo>>| {
+        let end_rw = end.clone();
+        let count_arc = count.clone();
+        let saving_job = move |pb: ProgressBar, file: File, receiver: Receiver<Result<ScraperGameInfo>>| {
             let mut file_buffer = BufWriter::new(file);
 
             while let Ok(info) = receiver.recv() {
@@ -67,15 +73,31 @@ impl Manager {
                     if let Err(e) = file_buffer.write_all(serialized_info.as_bytes()) {
                         eprintln!("ERROR: While reading to file = [{:?}]", e);
                     }
+
+                    {
+                        let mut count_write = count_arc.write().unwrap();
+                        *count_write += 1;
+                        pb.set_position(*count_write);
+                    }
+                } else {
+                    eprintln!("Wczytano error: {:?}\n", info);
                 }
             }
 
             let _ = file_buffer.flush();
+            *end_rw.write().unwrap() = true;
         };
 
-        std::thread::spawn(move || saving_job(file_link, rx));
-
         let games = self.read_game_sites()?;
+
+        let pb = ProgressBar::new(games.len().try_into().unwrap());
+        pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+            .unwrap()
+            .with_key("eta", |state: &ProgressState, w: &mut dyn std::fmt::Write| write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap())
+            .progress_chars("#>-"));
+            
+        std::thread::spawn(move || saving_job(pb, file_link, rx));
+
 
         for game in games {
             let tx_clone = tx.clone();

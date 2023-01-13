@@ -79,7 +79,6 @@ impl<'a> RunIterator<'a> {
 }
 
 fn parse_time(text: &str) -> Option<(u16, u8)> {
-    eprintln!("TIME: {:?}", text);
     static TIME_REGEX: OnceCell<Regex> = OnceCell::new();
 
     if text.len() == 0 {
@@ -145,7 +144,8 @@ fn parse_competitor(element: &ElementRef) -> Result<PlayerRunScore> {
         score = &score_binding.trim()[0..2];
     }
 
-    let score = PlayerScore::parse(score)?;
+    let score = PlayerScore::parse(score)
+        .with_context(|| format!("Error parsing player score"))?;
 
     // Parsing helmet icon
     let helmet = Helmet::try_parsing(
@@ -175,13 +175,24 @@ impl<'a> Iterator for RunIterator<'a> {
         self.remaining -= 1;
 
         let time = self.time.next().unwrap();
-        eprintln!("TIME ELEMENT: {:?} ON SITE {:?}", time.html(), self.site);
+
         let time = parse_time(&time.inner_html());
 
         let mut players_score = Vec::new();
         for _ in 0..4 {
             let competitor = self.players.next().unwrap();
-            players_score.push(parse_competitor(&competitor).unwrap());
+            let parsed_competitor = parse_competitor(&competitor);
+
+            match parsed_competitor {
+                Ok(pc) => {
+                    players_score.push(pc);
+                }
+                Err(e) => {
+                    eprintln!("PARSED ERROR {e:?} AT SITE {}.\n", self.site);
+                    Err::<(), anyhow::Error>(e).unwrap();
+                }
+            }
+
         }
 
         Some(Self::Item::new(number, time, players_score))
