@@ -2,14 +2,16 @@ use crate::ApplicationData;
 use gloo_net::http::Request;
 use sycamore::{
     component,
+    futures::spawn_local_scoped,
     reactive::{create_selector, Scope},
     view,
     view::View,
-    web::Html, futures::spawn_local_scoped,
+    web::Html,
 };
 use sycamore_router::navigate;
 
-const LOGOUT_ADDRESS: &'static str = const_format::formatcp!("{}/users/logout", crate::SERVER_ADDRESS);
+const LOGOUT_ADDRESS: &'static str =
+    const_format::formatcp!("{}/users/logout", crate::SERVER_ADDRESS);
 
 async fn logout() {
     let request = Request::post(LOGOUT_ADDRESS);
@@ -27,8 +29,6 @@ pub fn Navbar<'a, G: Html>(cx: Scope<'a>, data: ApplicationData<'a>) -> View<G> 
             crate::client::update_session_info(cx, data.username).await;
             navigate("/home");
         });
-
-        
     };
 
     view! {

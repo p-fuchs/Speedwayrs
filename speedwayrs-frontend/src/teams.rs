@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use log::info;
 use serde::Deserialize;
-use sycamore::{web::Html, view::View, view, reactive::{Scope, Signal, create_signal}, futures::spawn_local_scoped, prelude::Indexed};
+use sycamore::{web::Html, view::View, view, reactive::{Scope, Signal, create_signal}, futures::spawn_local_scoped, prelude::Indexed, Prop};
 
 use crate::ApplicationData;
 
@@ -163,6 +163,27 @@ pub fn TeamsPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
                 (
                     render_table(search_result.get())
                 )
+            }
+        }
+    }
+}
+
+#[derive(Prop, Copy, Clone)]
+pub struct TeamInfo<'a> {
+    username: &'a Signal<Option<String>>,
+    team_id: i32
+}
+
+pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
+    view! {
+        cx,
+        div(class="h-screen w-screen bg-indigo-200") {
+            br() {}
+
+            div(class="flex flex-wrap flex-col items-center mt-4") {
+                a(class="font-mono text-8xl italic font-extrabold tracking-wide text-center text-indigo-800") {
+                    "Test"
+                }
             }
         }
     }

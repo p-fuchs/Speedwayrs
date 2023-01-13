@@ -1,6 +1,6 @@
 mod account;
-mod session;
 mod data;
+mod session;
 
 use std::{net::SocketAddr, sync::Arc};
 
@@ -61,9 +61,10 @@ async fn main() -> Result<()> {
             session::session_management,
         ))
         .with_state(app_data)
-        .layer(tower_http::cors::CorsLayer::very_permissive()
-        //.allow_origin("http://127.0.0.1/".parse::<http::HeaderValue>().unwrap())
-        .allow_credentials(true)
+        .layer(
+            tower_http::cors::CorsLayer::very_permissive()
+                //.allow_origin("http://127.0.0.1/".parse::<http::HeaderValue>().unwrap())
+                .allow_credentials(true),
         )
         .layer(tower_http::trace::TraceLayer::new_for_http());
 

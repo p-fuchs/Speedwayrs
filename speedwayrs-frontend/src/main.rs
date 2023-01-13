@@ -1,8 +1,8 @@
-mod login;
-mod players;
-mod navbar;
-mod signup;
 mod client;
+mod login;
+mod navbar;
+mod players;
+mod signup;
 mod teams;
 
 use login::LoginPage;
@@ -10,14 +10,15 @@ use navbar::Navbar;
 use players::PlayersPage;
 use signup::SignupPage;
 use sycamore::{
+    futures::spawn_local_scoped,
     reactive::{create_signal, ReadSignal, Scope, Signal},
     view,
     view::View,
     web::Html,
-    Prop, futures::spawn_local_scoped,
+    Prop,
 };
 use sycamore_router::{HistoryIntegration, Route, Router};
-use teams::TeamsPage;
+use teams::{TeamInfoPage, TeamsPage};
 
 const SERVER_ADDRESS: &'static str = "http://localhost:47123";
 
@@ -43,9 +44,7 @@ pub enum ApplicationRoute {
     #[to("/teams")]
     Teams,
     #[to("/team/<team_id>")]
-    Team {
-        team_id: u16
-    },
+    Team { team_id: i32 },
     #[to("/players")]
     Players,
     #[not_found]
@@ -92,6 +91,12 @@ fn start_application<G: Html>(cx: Scope) -> View<G> {
                                     view! {
                                         cx,
                                         PlayersPage()
+                                    }
+                                }
+                                ApplicationRoute::Team {team_id} => {
+                                    view! {
+                                        cx,
+                                        TeamInfoPage(username=username_data, team_id=*team_id)
                                     }
                                 }
                                 a => {
