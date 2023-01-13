@@ -2,6 +2,7 @@ mod login;
 mod navbar;
 mod signup;
 mod client;
+mod teams;
 
 use cookie::{Cookie, CookieJar};
 use login::LoginPage;
@@ -16,6 +17,7 @@ use sycamore::{
     Prop, futures::spawn_local_scoped,
 };
 use sycamore_router::{HistoryIntegration, Route, Router};
+use teams::TeamsPage;
 use std::fmt::Write;
 
 const SERVER_ADDRESS: &'static str = "http://localhost:47123";
@@ -39,6 +41,10 @@ pub enum ApplicationRoute {
     Login,
     #[to("/signup")]
     Signup,
+    #[to("/teams")]
+    Teams,
+    #[to("/players")]
+    Players,
     #[not_found]
     NotFound,
 }
@@ -71,6 +77,12 @@ fn start_application<G: Html>(cx: Scope) -> View<G> {
                                     view! {
                                         cx,
                                         SignupPage()
+                                    }
+                                }
+                                ApplicationRoute::Teams => {
+                                    view! {
+                                        cx,
+                                        TeamsPage()
                                     }
                                 }
                                 a => {

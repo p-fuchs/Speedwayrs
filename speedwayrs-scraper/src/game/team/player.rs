@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result, Context};
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 
@@ -10,17 +10,21 @@ pub enum PlayerScore {
     ScoreWithStar(u8),
     Fall,
     Reserve,
-    Resign,
+    Defect,
+    Tape,
+    NotFinished,
     None,
 }
 
 impl PlayerScore {
     pub fn parse(text: &str) -> Result<Self> {
         Ok(match text.trim() {
-            "" => PlayerScore::None,
+            "" | "<i" => PlayerScore::None,
             "-" => PlayerScore::Reserve,
-            "u" | "U" | "w" => PlayerScore::Fall,
-            "d" => PlayerScore::Resign,
+            "u" | "U" | "w" | "u/-" | "u/" => PlayerScore::Fall,
+            "d" => PlayerScore::Defect,
+            "t" => PlayerScore::Tape,
+            "ns" => PlayerScore::NotFinished,
             num => {
                 if num.ends_with('*') {
                     let trimmed = num.trim_end_matches('*');
@@ -127,7 +131,8 @@ impl Player {
                 break;
             }
 
-            scores.push(PlayerScore::parse(&match_score.inner_html())?);
+            scores.push(PlayerScore::parse(&match_score.inner_html())
+                .with_context(|| format!("PlayerScore parsing at run {number}."))?);
         }
 
         Ok(Player {

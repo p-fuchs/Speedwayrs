@@ -1,0 +1,5 @@
+CREATE TABLE run (
+    run_id BIGSERIAL PRIMARY KEY,
+    game_id BIGINT REFERENCES game NOT NULL,
+    place INTEGER REFERENCES stadium NOT NULL
+);

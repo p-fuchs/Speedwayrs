@@ -7,7 +7,7 @@ use anyhow::{anyhow, Context, Result};
 use once_cell::sync::OnceCell;
 
 static REQUESTER: OnceCell<Arc<Mutex<HttpRequester>>> = OnceCell::new();
-pub const DEFAULT_TICK_INTERVAL: Duration = Duration::from_millis(100);
+pub const DEFAULT_TICK_INTERVAL: Duration = Duration::from_millis(1);
 const CONNECT_SLEEPING_DURATION: Duration = Duration::from_secs(3);
 
 /// Struct used as http request limiter.

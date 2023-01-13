@@ -1,5 +1,6 @@
 mod account;
 mod session;
+mod data;
 
 use std::{net::SocketAddr, sync::Arc};
 
@@ -54,6 +55,7 @@ async fn main() -> Result<()> {
     let router = Router::new()
         .nest("/users", account::users_router())
         .nest("/session", session::session_router())
+        .nest("/data", data::data_router())
         .layer(axum::middleware::from_fn_with_state(
             app_data.clone(),
             session::session_management,

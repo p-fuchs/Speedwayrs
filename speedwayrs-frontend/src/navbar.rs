@@ -48,6 +48,12 @@ pub fn Navbar<'a, G: Html>(cx: Scope<'a>, data: ApplicationData<'a>) -> View<G> 
                 a(class="hover:text-red-700", href="/chat") {
                     "Chat"
                 }
+                a(class="hover:text-red-700", href="/teams") {
+                    "Teams"
+                }
+                a(class="hover:text-red-700", href="/players") {
+                    "Players"
+                }
             }
 
             div(class="flex pr-6 space-x-10 items-center") {
