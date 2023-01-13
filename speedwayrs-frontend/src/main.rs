@@ -1,13 +1,12 @@
 mod login;
+mod players;
 mod navbar;
 mod signup;
 mod client;
 mod teams;
 
-use cookie::{Cookie, CookieJar};
 use login::LoginPage;
 use navbar::Navbar;
-use once_cell::sync::OnceCell;
 use signup::SignupPage;
 use sycamore::{
     reactive::{create_signal, ReadSignal, Scope, Signal},
@@ -18,7 +17,6 @@ use sycamore::{
 };
 use sycamore_router::{HistoryIntegration, Route, Router};
 use teams::TeamsPage;
-use std::fmt::Write;
 
 const SERVER_ADDRESS: &'static str = "http://localhost:47123";
 
@@ -43,6 +41,10 @@ pub enum ApplicationRoute {
     Signup,
     #[to("/teams")]
     Teams,
+    #[to("/team/<team_id>")]
+    Team {
+        team_id: u16
+    },
     #[to("/players")]
     Players,
     #[not_found]
