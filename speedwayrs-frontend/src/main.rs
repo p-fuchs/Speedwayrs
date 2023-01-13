@@ -7,6 +7,7 @@ mod teams;
 
 use login::LoginPage;
 use navbar::Navbar;
+use players::PlayersPage;
 use signup::SignupPage;
 use sycamore::{
     reactive::{create_signal, ReadSignal, Scope, Signal},
@@ -85,6 +86,12 @@ fn start_application<G: Html>(cx: Scope) -> View<G> {
                                     view! {
                                         cx,
                                         TeamsPage()
+                                    }
+                                }
+                                ApplicationRoute::Players => {
+                                    view! {
+                                        cx,
+                                        PlayersPage()
                                     }
                                 }
                                 a => {

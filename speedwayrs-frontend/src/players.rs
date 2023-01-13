@@ -12,13 +12,13 @@ struct Player {
     id: i32
 }
 
-const PLAYER_SEARCH: &'static str = const_format::formatcp!("{}/data/player", crate::SERVER_ADDRESS);
+const PLAYER_SEARCH: &'static str = const_format::formatcp!("{}/data/players", crate::SERVER_ADDRESS);
 
-async fn search_request(team: String) -> Result<Vec<Player>, ()> {
+async fn search_request(player: String) -> Result<Vec<Player>, ()> {
     let request = gloo_net::http::Request::post(PLAYER_SEARCH)
         .header("Content-Type", "application/json")
         .body(serde_json::to_string(&serde_json::json!({
-            "player_name": team
+            "player_name": player 
         })).unwrap());
 
     match crate::client::execute(request).await {
@@ -38,6 +38,7 @@ async fn search_request(team: String) -> Result<Vec<Player>, ()> {
                         Err(())
                     }
                     Ok(text) => {
+                        log::trace!("Completed search_request().");
                         Ok(
                             serde_json::from_str(&text).unwrap()
                         )

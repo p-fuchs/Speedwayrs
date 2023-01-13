@@ -1,5 +1,5 @@
-CREATE TABLE player (
+CREATE TABLE application.player (
     player_id SERIAL PRIMARY KEY,
-    pname VARCHAR(50) NOT NULL,
+    name VARCHAR(50) NOT NULL,
     sname VARCHAR(50) NOT NULL
 );

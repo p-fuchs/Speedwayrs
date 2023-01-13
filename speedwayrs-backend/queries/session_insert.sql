@@ -1,2 +1,2 @@
-INSERT INTO user_sessions (id, expiration)
+INSERT INTO application.user_sessions (id, expiration)
 VALUES ($1, $2);

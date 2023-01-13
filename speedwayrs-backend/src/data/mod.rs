@@ -12,10 +12,43 @@ struct TeamSearch {
     team_name: String
 }
 
+#[derive(Deserialize)]
+struct PlayerSearch {
+    player_name: String
+}
+
 #[derive(Serialize)]
 struct Team {
     name: String,
     id: i32
+}
+
+#[derive(Serialize)]
+struct Player {
+    name: String,
+    sname: String,
+    id: i32
+}
+
+async fn search_players(
+    State(db): State<Arc<PgPool>>,
+    Json(form): Json<PlayerSearch>) -> impl IntoResponse {
+    let name = form.player_name;
+
+    let query: sqlx::Result<Vec<_>> = sqlx::query_file!("queries/player_search.sql", format!("%{name}%"))
+        .fetch_all(db.as_ref())
+        .await;    
+
+    match query {
+        Err(e) => {
+            tracing::error!("Error occured while querying database in search_players(). Error = [{:?}]", e);
+
+            (StatusCode::INTERNAL_SERVER_ERROR).into_response()
+        }
+        Ok(players) => {
+            (StatusCode::OK, Json(players.into_iter().map(|record| Player {name: record.name, sname: record.sname, id: record.player_id}).collect::<Vec<Player>>())).into_response()
+        }
+    }
 }
 
 async fn search_teams(
@@ -50,4 +83,5 @@ async fn search_teams(
 pub fn data_router() -> Router<AppData> {
     Router::new()
         .route("/teams", post(search_teams))
+        .route("/players", post(search_players))
 }
