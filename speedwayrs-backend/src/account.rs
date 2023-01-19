@@ -210,20 +210,20 @@ async fn login(
 }
 
 async fn logout(State(pg_pool): State<Arc<PgPool>>, jar: CookieJar) -> impl IntoResponse {
-    let session_id_str = jar.get(crate::session::SESSION_COOKIE)
-        .expect("Middleware is not working - no session cookie.").value();
+    let session_id_str = jar
+        .get(crate::session::SESSION_COOKIE)
+        .expect("Middleware is not working - no session cookie.")
+        .value();
 
-    let session_id = Uuid::parse_str(session_id_str)
-        .expect("Middleware is not working - cannot parse uuid.");
+    let session_id =
+        Uuid::parse_str(session_id_str).expect("Middleware is not working - cannot parse uuid.");
 
     let query = sqlx::query_file!("queries/session_logout.sql", session_id)
         .execute(pg_pool.as_ref())
         .await;
 
     match query {
-        Ok(_) => {
-            StatusCode::OK
-        }
+        Ok(_) => StatusCode::OK,
         Err(e) => {
             tracing::error!("Database returned error: {:?}.", e);
 

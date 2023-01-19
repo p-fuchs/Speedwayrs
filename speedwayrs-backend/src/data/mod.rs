@@ -1,4 +1,6 @@
+mod match_info;
 mod team_data;
+mod team_stats;
 
 use std::sync::Arc;
 
@@ -105,4 +107,6 @@ pub fn data_router() -> Router<AppData> {
         .route("/teams", post(search_teams))
         .route("/players", post(search_players))
         .route("/team_info", post(team_data::team_data))
+        .route("/team_stats", post(team_stats::team_stats))
+        .route("/match_info", post(match_info::match_info_handler))
 }

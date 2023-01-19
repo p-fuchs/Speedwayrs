@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use log::info;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use sycamore::{web::Html, view::View, view, reactive::{Scope, Signal, create_signal, create_selector}, futures::spawn_local_scoped, prelude::Indexed, Prop};
 
 use crate::ApplicationData;
@@ -15,6 +15,7 @@ struct Team {
 const TEAM_SEARCH: &'static str = const_format::formatcp!("{}/data/teams", crate::SERVER_ADDRESS);
 const TEAM_INFO: &'static str = const_format::formatcp!("{}/data/team_info", crate::SERVER_ADDRESS);
 const TEAM_LIKE: &'static str = const_format::formatcp!("{}/utils/like", crate::SERVER_ADDRESS);
+const TEAM_STATS: &'static str = const_format::formatcp!("{}/data/team_stats", crate::SERVER_ADDRESS);
 
 async fn search_request(team: String) -> Result<Vec<Team>, ()> {
     let request = gloo_net::http::Request::post(TEAM_SEARCH)
@@ -285,10 +286,38 @@ async fn post_like(team_id: i32, team_info: &Signal<Option<ResponseMatchInfo>>) 
     }
 }
 
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+struct GameData {
+    id: i32,
+    opponent: String,
+    games: u32
+}
+
+#[derive(Debug, Deserialize, Clone)]
+struct TeamStats {
+    wins: u32,
+    looses: u32,
+    ties: u32,
+    often_looses: Vec<GameData>,
+    often_wins: Vec<GameData>
+}
+
+
+async fn update_team_stats(team_id: i32, team_stats: &Signal<Option<TeamStats>>) {
+    let req_body = serde_json::json!({
+        "team_id": team_id
+    });
+
+    if let Some(stats) = fetch_json_data(TEAM_STATS, &req_body).await {
+        team_stats.set(stats);
+    }
+}
+
 pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
     let page = create_signal(cx, 1u32);
     let connection_error = create_signal(cx, false);
     let team_info = create_signal(cx, None as Option<ResponseMatchInfo>);
+    let team_stats = create_signal(cx, None as Option<TeamStats>);
 
     let update_info = move || {
         spawn_local_scoped(cx, async move {
@@ -296,7 +325,25 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
         })
     };
 
+    spawn_local_scoped(cx, async move {
+        update_team_stats(info.team_id, team_stats).await;
+    });
+
     update_info();
+
+    let plus_button = move |_| {
+        *page.modify() += 1;
+
+        update_info();
+    };
+
+    let minus_button = move |_| {
+        if *page.get_untracked().as_ref() != 1 {
+            *page.modify() -= 1;
+
+            update_info();
+        }
+    };
 
     let iterable_match_info = create_selector(cx, move || {
         match team_info.get().as_ref() {
@@ -306,6 +353,20 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
             Some(vec) => {
                 vec.last_matches.clone()
             }
+        }
+    });
+
+    let iterable_lost_games = create_selector(cx, move || {
+        match team_stats.get().as_ref() {
+            None => Vec::new(),
+            Some(vec) => vec.often_looses.clone() 
+        }
+    });
+
+    let iterable_won_games = create_selector(cx, move || {
+        match team_stats.get().as_ref() {
+            None => Vec::new(),
+            Some(vec) => vec.often_wins.clone()
         }
     });
 
@@ -332,8 +393,8 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
         div(class="h-screen w-screen bg-indigo-200") {
             br() {}
 
-            div(class="flex flex-wrap flex-col items-center mt-4 static") {
-                a(class="font-mono text-8xl italic font-extrabold tracking-wide text-center text-indigo-800") {
+            div(class="flex flex-wrap flex-col items-center ml-4 mt-4 mb-15 static") {
+                a(class="font-sans text-6xl ml-20 font-black underline tracking-wide text-left text-indigo-800 decoration-double") {
                     (
                         {
                             match team_info.get().as_ref() {
@@ -378,11 +439,200 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
             }
 
             div(class="flex flex-row flex-nowrap w-screen h-screen") {
-                div(class="flex flex-col basis-1/2 items-center") {
-                    "a"
+                div(class="flex flex-col basis-1/2 items-center text-lg") {
+                    a(class="font-extrabold") {
+                        "Statystyki"
+                    }
+                    (
+                        {
+                            let team_stats_struct = team_stats.get().as_ref().clone();
+                            match team_stats_struct {
+                                Some(stats) => {
+                                    view! {
+                                        cx,
+                                        div(class="border-4 border-double my-15 w-8/12 border-indigo-900/30") {
+                                            table(class="border-separate w-full mb-15 table-auto border-spacing-0.5") {
+                                                tbody(class="font-normal") {
+                                                    tr() {
+                                                        th(class="rounded-none border-2 border-indigo-500/20") {
+                                                            (
+                                                                "Wygrane"
+                                                            )
+                                                        }
+                                                        th(class="rounded-none border-2 border-indigo-500/20") {
+                                                            (
+                                                                stats.wins
+                                                            )
+                                                        }
+                                                    }
+                                                    tr() {
+                                                        th(class="rounded-none border-2 border-indigo-500/20") {
+                                                            (
+                                                                "Przegrane"
+                                                            )
+                                                        }
+                                                        th(class="rounded-none border-2 border-indigo-500/20") {
+                                                            (
+                                                                stats.looses
+                                                            )
+                                                        }
+                                                    }
+                                                    tr() {
+                                                        th(class="rounded-none border-2 border-indigo-500/20") {
+                                                            (
+                                                                "Remisy"
+                                                            )
+                                                        }
+                                                        th(class="rounded-none border-2 border-indigo-500/20") {
+                                                            (
+                                                                stats.ties
+                                                            )
+                                                        }
+                                                    }
+                                                    tr() {
+                                                        th(class="rounded-none border-2 border-indigo-500/20") {
+                                                            (
+                                                                "Współczynnik zwycięstwa"
+                                                            )
+                                                        }
+                                                        th(class="rounded-none border-2 border-indigo-500/20") {
+                                                            (
+                                                                {
+                                                                    let total = stats.wins + stats.looses + stats.ties;
+
+                                                                    format!("{:.3}", stats.wins as f64 / total as f64)
+                                                                }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }    
+                                }
+                                None => {
+                                    view! {
+                                        cx,
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    (
+                        {
+                            let team_stats_struct = team_stats.get().as_ref().clone();
+                            match team_stats_struct {
+                                None => {
+                                    view! {cx, }
+                                }
+                                Some(_) => {
+                                    if iterable_lost_games.get().as_ref().is_empty() {
+                                        view! {cx ,}
+                                    } else {
+                                        view! {cx,
+                                            a(class="pt-5 font-extrabold mt-15") {
+                                                "Najczęstsze przegrane"
+                                            }
+                                            div(class="border-4 border-double w-8/12 m-15 border-indigo-900/30") {
+                                                table(class="border-separate w-full table-auto border-spacing-0.5") {
+                                                    thead(class="itaic") {
+                                                        tr() {
+                                                            th(class="rounded-none border-2 border-indigo-500/50") {
+                                                                "Przeciwnik"
+                                                            }
+                                                            th(class="rounded-none border-2 border-indigo-500/50") {
+                                                                "Ilość przegranych"
+                                                            }
+                                                        }
+                                                    }
+                                                    tbody(class="font-normal") {
+                                                        Indexed(
+                                                            iterable = iterable_lost_games, 
+                                                            view = |cx, lost_game| view! {
+                                                                cx,
+                                                                tr() {
+                                                                    th(class="rounded-none border-2 border-indigo-500/20") {
+                                                                        a(class="hover:text-sky-400", href=format!("/team/{}", lost_game.id)) {
+                                                                            (lost_game.opponent)
+                                                                        }
+                                                                    }
+                                                                    th(class="rounded-none border-2 border-indigo-500/20") {
+                                                                        (
+                                                                            lost_game.games
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                            
+                                                            )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    (
+                        {
+                            let team_stats_struct = team_stats.get().as_ref().clone();
+                            match team_stats_struct {
+                                None => {
+                                    view! {cx, }
+                                }
+                                Some(_) => {
+                                    if iterable_won_games.get().as_ref().is_empty() {
+                                        view! {cx, }
+                                    } else {
+                                        view! {cx,
+                                            a(class="pt-5 font-extrabold mt-15") {
+                                                "Najczęstsze wygrane"
+                                            }
+                                            div(class="border-4 border-double w-8/12 m-15 border-indigo-900/30") {
+                                                table(class="border-separate w-full table-auto border-spacing-0.5") {
+                                                    thead(class="itaic") {
+                                                        tr() {
+                                                            th(class="rounded-none border-2 border-indigo-500/50") {
+                                                                "Przeciwnik"
+                                                            }
+                                                            th(class="rounded-none border-2 border-indigo-500/50") {
+                                                                "Ilość wygranych"
+                                                            }
+                                                        }
+                                                    }
+                                                    tbody(class="font-normal") {
+                                                        Indexed(
+                                                            iterable = iterable_won_games, 
+                                                            view = |cx, won_game| view! {
+                                                                cx,
+                                                                tr() {
+                                                                    th(class="rounded-none border-2 border-indigo-500/20") {
+                                                                        a(class="hover:text-sky-400", href=format!("/team/{}", won_game.id)) {
+                                                                            (won_game.opponent)
+                                                                        }
+                                                                    }
+                                                                    th(class="rounded-none border-2 border-indigo-500/20") {
+                                                                        (
+                                                                            won_game.games
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                            
+                                                            )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    )
                 }
-                div(class="flex flex-col basis-1/2 items-center font-bold text-lg") {
-                    a() {
+                div(class="flex flex-col basis-1/2 items-center text-lg") {
+                    a(class="font-extrabold") {
                         "Ostatnie mecze"
                     }
                     br() {}
@@ -408,9 +658,11 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
                                         cx,
                                         tr() {
                                             th(class="rounded-none border-2 border-indigo-500/20") {
-                                                (
-                                                    match_info.match_id
-                                                )
+                                                a(class="hover:text-sky-400", href=format!("/match/{}", match_info.match_id)) {
+                                                    (
+                                                        match_info.match_id
+                                                    )
+                                                }
                                             }
                                             th(class="rounded-none border-2 border-indigo-500/20") {
                                                 a(class="hover:text-sky-400", href=format!("/team/{}", match_info.opponent_id)) {
@@ -427,6 +679,17 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
                                 )
                             }
                         }
+                    }
+                    div(class="items-center flex flex-row") {
+                        img(class="cursor-pointer", width=60, height=60, src="https://www.svgrepo.com/show/486206/system-arrow-left-line.svg", on:click=minus_button) {}
+                        div(class="border-6 border-solid bg-indigo-800/40 border border-indigo-900/30") {
+                            a(class="m-3") {
+                                (
+                                    *page.get().as_ref()
+                                )
+                            }
+                        }
+                        img(class="cursor-pointer", width=60, height=60, src="https://www.svgrepo.com/show/486204/system-arrow-right-line.svg", on:click=plus_button) {}
                     }
                 }
             }

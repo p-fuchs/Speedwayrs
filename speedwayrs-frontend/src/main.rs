@@ -1,10 +1,13 @@
+mod match_info;
 mod client;
 mod login;
 mod navbar;
 mod players;
 mod signup;
 mod teams;
+mod utils;
 
+pub use utils::fetch_json_data;
 use login::LoginPage;
 use navbar::Navbar;
 use players::PlayersPage;

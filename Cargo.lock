@@ -2161,6 +2161,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "speedwayrs-types",
  "sqlx",
  "time",
  "tokio",
@@ -2183,6 +2184,7 @@ dependencies = [
  "once_cell",
  "serde",
  "serde_json",
+ "speedwayrs-types",
  "sycamore",
  "sycamore-router",
  "url",
@@ -2214,6 +2216,11 @@ dependencies = [
 [[package]]
 name = "speedwayrs-types"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "time",
+]
 
 [[package]]
 name = "spin"
