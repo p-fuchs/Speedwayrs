@@ -1,6 +1,4 @@
-pub mod scraper_types;
-
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct MatchResult {
@@ -13,11 +11,20 @@ pub struct MatchResult {
     place: String,
 
     runs: Vec<RunInfo>,
-    player_results: Vec<Player>
+    player_results: Vec<Player>,
 }
 
 impl MatchResult {
-    pub fn new(team_1: String, team_2: String, score_1: u32, score_2: u32, place: String, date: time::OffsetDateTime, runs: Vec<RunInfo>, player_results: Vec<Player>) -> Self {
+    pub fn new(
+        team_1: String,
+        team_2: String,
+        score_1: u32,
+        score_2: u32,
+        place: String,
+        date: time::OffsetDateTime,
+        runs: Vec<RunInfo>,
+        player_results: Vec<Player>,
+    ) -> Self {
         Self {
             team_1,
             team_2,
@@ -26,7 +33,7 @@ impl MatchResult {
             date,
             place,
             runs,
-            player_results
+            player_results,
         }
     }
     pub fn first_team_name(&self) -> &str {
@@ -51,7 +58,7 @@ pub struct RunInfo {
     number: u8,
     time: Option<(u32, u16)>,
     // First field represents player name and second field represents player's score.
-    player_scores: Vec<(String, String)>
+    player_scores: Vec<(String, String)>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -91,13 +98,17 @@ impl Player {
         Self {
             name,
             surname,
-            scores
+            scores,
         }
     }
 }
 
 impl RunInfo {
     pub fn new(number: u8, time: Option<(u32, u16)>, player_scores: Vec<(String, String)>) -> Self {
-        Self { number, time, player_scores }
+        Self {
+            number,
+            time,
+            player_scores,
+        }
     }
 }
