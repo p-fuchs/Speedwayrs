@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+pub mod scraper_types;
+
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
@@ -59,6 +60,9 @@ pub enum PlayerResult {
     ScoreWithStar(u8),
     Fall,
     Reserve,
+    Defect,
+    Tape,
+    NotFinished,
     None,
 }
 

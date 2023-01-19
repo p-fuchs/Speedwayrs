@@ -6,3 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# TYPES
+speedwayrs-types = { path = "../speedwayrs-types/" }
+
+# SERIALIZATION
+serde = {version = "1.0.148", features = ["derive"]}
+serde_json = "1.0.89"
+
+# INSERTION
+sqlx = { version = "0.6", features = [ "runtime-tokio-rustls", "postgres" ] }
+tokio = { version = "1.24.2", features = ["full"]}
