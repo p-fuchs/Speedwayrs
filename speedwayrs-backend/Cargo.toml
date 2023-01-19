@@ -32,3 +32,6 @@ email_address = "0.2.4"
 uuid = {version = "1.2.2", features = ["v4"]}
 time = "0.3.17"
 http = "0.2.8"
+
+# Data types
+speedwayrs-types = {path = "../speedwayrs-types/"}

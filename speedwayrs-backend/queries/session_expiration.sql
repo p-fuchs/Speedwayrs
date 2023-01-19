@@ -1,6 +1,6 @@
 SELECT
     user_sessions.expiration
 FROM
-    user_sessions
+    application.user_sessions
 WHERE
     id = $1;

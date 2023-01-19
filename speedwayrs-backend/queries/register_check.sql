@@ -1,6 +1,6 @@
 SELECT
     users.username, users.email
 FROM
-    users
+    application.users
 WHERE
     users.username = $1 OR users.email = $2;

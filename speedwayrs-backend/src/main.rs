@@ -1,6 +1,7 @@
 mod account;
-mod session;
 mod data;
+mod session;
+mod utils;
 
 use std::{net::SocketAddr, sync::Arc};
 
@@ -56,14 +57,16 @@ async fn main() -> Result<()> {
         .nest("/users", account::users_router())
         .nest("/session", session::session_router())
         .nest("/data", data::data_router())
+        .nest("/utils", utils::utils_router())
         .layer(axum::middleware::from_fn_with_state(
             app_data.clone(),
             session::session_management,
         ))
         .with_state(app_data)
-        .layer(tower_http::cors::CorsLayer::very_permissive()
-        //.allow_origin("http://127.0.0.1/".parse::<http::HeaderValue>().unwrap())
-        .allow_credentials(true)
+        .layer(
+            tower_http::cors::CorsLayer::very_permissive()
+                //.allow_origin("http://127.0.0.1/".parse::<http::HeaderValue>().unwrap())
+                .allow_credentials(true),
         )
         .layer(tower_http::trace::TraceLayer::new_for_http());
 

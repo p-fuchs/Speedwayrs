@@ -2,6 +2,6 @@ SELECT
     team_id,
     team_name
 FROM
-    team
+    application.team
 WHERE
     lower(team_name) LIKE $1;

@@ -1,6 +1,6 @@
 SELECT
     users.password_hash
 FROM
-    users
+    application.users
 WHERE
     users.username = $1;

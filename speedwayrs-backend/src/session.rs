@@ -6,9 +6,13 @@ use axum::{
     http::{HeaderValue, Request},
     middleware::Next,
     response::{IntoResponse, Response},
-    Extension, Router, routing::get,
+    routing::get,
+    Extension, Router,
 };
-use axum_extra::extract::{cookie::{Cookie, SameSite}, CookieJar};
+use axum_extra::extract::{
+    cookie::{Cookie, SameSite},
+    CookieJar,
+};
 use http::StatusCode;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -18,6 +22,7 @@ use crate::AppData;
 pub const SESSION_COOKIE: &'static str = "srs-session";
 const SESSION_EXPIRATION: Duration = Duration::from_secs(60 * 60);
 
+#[derive(Debug, Clone)]
 pub enum AuthStatus {
     NonAuthenticated,
     Authenticated(String),
@@ -163,6 +168,7 @@ pub async fn session_management<B>(
     mut req: Request<B>,
     next: Next<B>,
 ) -> Response {
+    tracing::info!("Invoked");
     let mut cookie_jar = axum_extra::extract::CookieJar::from_headers(req.headers());
 
     if let Some(cookie) = cookie_jar.get(SESSION_COOKIE) {
@@ -176,7 +182,7 @@ pub async fn session_management<B>(
                 cookie_jar = cookie_jar.remove(Cookie::named(SESSION_COOKIE));
             }
             Ok(uuid) => {
-                let (_, expiration_time) = validate_session(&pg_pool, uuid).await;
+                let (possible_username, expiration_time) = validate_session(&pg_pool, uuid).await;
 
                 cookie_jar = cookie_jar.remove(Cookie::named(SESSION_COOKIE));
                 let cookie = Cookie::build(SESSION_COOKIE, uuid.to_string())
@@ -189,7 +195,23 @@ pub async fn session_management<B>(
 
                 cookie_jar = cookie_jar.add(cookie);
 
+                if let Some(user) = possible_username {
+                    let auth_extension = Arc::new(AuthStatus::Authenticated(user));
+
+                    req.extensions_mut().insert(auth_extension);
+                    println!(
+                        "Authenticated branch. {:?}",
+                        req.extensions().get::<AuthStatus>()
+                    );
+                } else {
+                    let auth_extension = Arc::new(AuthStatus::NonAuthenticated);
+
+                    req.extensions_mut().insert(auth_extension);
+                    println!("Unauth branch.");
+                }
                 let next_r = next.run(req).await;
+
+                println!("After = {:?}", next_r.extensions().get::<Arc<AuthStatus>>());
                 return (cookie_jar, next_r).into_response();
             }
         }
@@ -211,8 +233,8 @@ pub async fn session_management<B>(
         http::header::COOKIE,
         HeaderValue::from_str(&format!("{}={}", SESSION_COOKIE, uuid)).unwrap(),
     );
-
-    let auth_extension = Extension(AuthStatus::NonAuthenticated);
+    println!("Outer branch");
+    let auth_extension = Arc::new(AuthStatus::NonAuthenticated);
     req.extensions_mut().insert(auth_extension);
 
     let next_r = next.run(req).await;
@@ -230,9 +252,11 @@ async fn session_info(State(pg_pool): State<Arc<PgPool>>, jar: CookieJar) -> imp
         .await;
 
     match query {
-        Ok(username) => {
-            (StatusCode::OK, username.username.unwrap_or_else(|| "".to_owned())).into_response()
-        }
+        Ok(username) => (
+            StatusCode::OK,
+            username.username.unwrap_or_else(|| "".to_owned()),
+        )
+            .into_response(),
         Err(e) => {
             tracing::error!("Error while requesting session_info from database: {e:?}");
 
@@ -242,6 +266,5 @@ async fn session_info(State(pg_pool): State<Arc<PgPool>>, jar: CookieJar) -> imp
 }
 
 pub fn session_router() -> Router<AppData> {
-    Router::new()
-        .route("/", get(session_info))
+    Router::new().route("/", get(session_info))
 }
