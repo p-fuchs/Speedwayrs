@@ -20,3 +20,6 @@ tokio = { version = "1.24.2", features = ["full"]}
 
 # FAKE ENV VARIABLES
 dotenvy = "0.15.6"
+
+# MORE ERRORS
+anyhow = "1.0.68"

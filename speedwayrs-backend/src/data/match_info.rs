@@ -77,6 +77,7 @@ struct RunPlayerInfo {
     result: String,
     name: String,
     sname: String,
+    player_id: i32
 }
 
 async fn select_game_runs_info(
@@ -127,7 +128,7 @@ fn combine_info(
         return Err("Total number of runs does not match.");
     }
 
-    let mut run_infos: HashMap<i32, Vec<(String, String)>> = HashMap::new();
+    let mut run_infos: HashMap<i32, Vec<(i32, String, String)>> = HashMap::new();
 
     for run in game_runs.iter() {
         let entry = match run_infos.get_mut(&run.run_position) {
@@ -140,7 +141,7 @@ fn combine_info(
             }
         };
 
-        entry.push((format!("{} {}", run.name, run.sname), run.result.clone()));
+        entry.push((run.player_id, format!("{} {}", run.name, run.sname), run.result.clone()));
     }
 
     let mut runs = Vec::new();

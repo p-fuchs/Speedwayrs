@@ -1,5 +1,6 @@
-use gloo_net::http::{Response, self};
+use gloo_net::http::{self, Response};
 use serde::{Deserialize, __private::de};
+use std::fmt::Write;
 use sycamore::{
     futures::spawn_local_scoped,
     reactive::{create_selector, create_signal, Scope, Signal},
@@ -9,10 +10,10 @@ use sycamore::{
     web::Html,
     Prop,
 };
-use zxcvbn::feedback::{Warning, Suggestion};
-use std::fmt::Write;
+use zxcvbn::feedback::{Suggestion, Warning};
 
-const SIGNUP_ADDRESS: &'static str = const_format::formatcp!("{}/users/signup", crate::SERVER_ADDRESS);
+const SIGNUP_ADDRESS: &'static str =
+    const_format::formatcp!("{}/users/signup", crate::SERVER_ADDRESS);
 
 #[derive(Debug, Clone)]
 enum SignupError {
@@ -20,11 +21,14 @@ enum SignupError {
     FieldMissing,
     ServerProblem,
     UnprocessableData,
-    FieldTaken { username: bool, email: bool },
+    FieldTaken {
+        username: bool,
+        email: bool,
+    },
     WeakPassword {
         warning: Option<Warning>,
-        description: Vec<Suggestion>
-    }
+        description: Vec<Suggestion>,
+    },
 }
 
 impl SignupError {
@@ -140,11 +144,14 @@ async fn signup_request(
 ) -> Result<(), SignupError> {
     let request = gloo_net::http::Request::post(SIGNUP_ADDRESS)
         .header("Content-Type", "application/json")
-        .body(serde_json::to_string(&serde_json::json!({
-            "username": username,
-            "email": email,
-            "password": password
-        })).unwrap());
+        .body(
+            serde_json::to_string(&serde_json::json!({
+                "username": username,
+                "email": email,
+                "password": password
+            }))
+            .unwrap(),
+        );
 
     match crate::client::execute(request).await {
         Err(e) => {
@@ -155,9 +162,10 @@ async fn signup_request(
         Ok(response) => {
             log::error!("GOT RESPONSE1");
             match response.status() {
-                201 => Ok(()), // created
+                201 => Ok(()),                          // created
                 500 => Err(SignupError::ServerProblem), // internal server error
-                422 | 409 => { // unprocessible entity or conflict
+                422 | 409 => {
+                    // unprocessible entity or conflict
                     Err(SignupError::extract_from(response).await)
                 }
                 status => {
@@ -198,18 +206,20 @@ pub fn SignupPage<G: Html>(cx: Scope) -> View<G> {
         } else {
             let password_grade = zxcvbn::zxcvbn(
                 password.get().as_str(),
-                &[
-                    username.get().as_str(),
-                    email.get().as_str()
-                ]).unwrap();
-            
+                &[username.get().as_str(), email.get().as_str()],
+            )
+            .unwrap();
+
             if password_grade.score() < 3 {
                 // Password is too weak.
                 let feedback = password_grade.feedback().as_ref().unwrap();
                 let warning = feedback.warning();
                 let description = feedback.suggestions().to_owned();
 
-                visible_error.set(Some(SignupError::WeakPassword { warning, description }));
+                visible_error.set(Some(SignupError::WeakPassword {
+                    warning,
+                    description,
+                }));
             } else {
                 visible_error.set(None);
                 registration_process.set(true);
@@ -228,7 +238,7 @@ pub fn SignupPage<G: Html>(cx: Scope) -> View<G> {
                             registration_error.set(Some(e));
                         }
                     }
-    
+
                     registration_process.set(false);
                 });
             }

@@ -1,7 +1,13 @@
-use gloo_net::http::{Request, Response, RequestCredentials, ReferrerPolicy, RequestMode, RequestCache};
+use gloo_net::http::{
+    ReferrerPolicy, Request, RequestCache, RequestCredentials, RequestMode, Response,
+};
 use once_cell::sync::OnceCell;
-use sycamore::{web::Html, reactive::{Scope, Signal}, futures::spawn_local_scoped};
 use std::fmt::Write;
+use sycamore::{
+    futures::spawn_local_scoped,
+    reactive::{Scope, Signal},
+    web::Html,
+};
 
 const SESSION_ADDRESS: &'static str = const_format::formatcp!("{}/session", crate::SERVER_ADDRESS);
 
@@ -14,7 +20,8 @@ pub fn post<'a, U: Into<&'a str>>(url: U) -> Request {
 }
 
 pub async fn execute(mut request: Request) -> Result<Response, gloo_net::Error> {
-    request = request.referrer_policy(ReferrerPolicy::UnsafeUrl)
+    request = request
+        .referrer_policy(ReferrerPolicy::UnsafeUrl)
         .mode(RequestMode::Cors)
         .credentials(RequestCredentials::Include)
         .cache(RequestCache::Default);
@@ -22,20 +29,18 @@ pub async fn execute(mut request: Request) -> Result<Response, gloo_net::Error> 
     request.send().await
 }
 
-
-
 pub async fn update_session_info<'a>(cx: Scope<'a>, username_data: &'a Signal<Option<String>>) {
     match session_info().await {
-            Ok(possible_user) => {
-                log::debug!("Update user {:?}", possible_user);
-                username_data.set(possible_user);
-            }
-            Err(e) => {
-                log::error!("Error while getting session info. {:?}", e);
-            }
+        Ok(possible_user) => {
+            log::debug!("Update user {:?}", possible_user);
+            username_data.set(possible_user);
         }
+        Err(e) => {
+            log::error!("Error while getting session info. {:?}", e);
+        }
+    }
 
-        log::debug!("Session info: {:?}", username_data.get().as_ref());
+    log::debug!("Session info: {:?}", username_data.get().as_ref());
 }
 
 async fn session_info() -> Result<Option<String>, gloo_net::Error> {
@@ -75,7 +80,7 @@ pub async fn execute(mut request: reqwest::RequestBuilder) -> Result<reqwest::Re
         log::error!("COOKIES: {:?}", jar_read);
 
         let mut cookies = String::new();
-        
+
         let mut cookie_iter = jar_read.iter();
         if let Some(cookie) = cookie_iter.next() {
             write!(&mut cookies, "{}", cookie.stripped()).unwrap();
@@ -106,7 +111,7 @@ pub async fn execute(mut request: reqwest::RequestBuilder) -> Result<reqwest::Re
 
     let mut jar_write = jar.write().await;
     log::debug!("COOKIES: {}", cookies.len());
-    
+
     for cookie in cookies {
         jar_write.add(cookie);
     }

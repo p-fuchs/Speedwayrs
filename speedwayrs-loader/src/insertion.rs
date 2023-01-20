@@ -39,7 +39,8 @@ async fn check_player(name: &str, sname: &str, db: &PgPool) -> Result<i32, sqlx:
 }
 
 async fn check_team(name: &str, db: &PgPool) -> Result<i32, sqlx::Error> {
-    println!("CHECKING TEAM {}", name);
+    let name = name.trim();
+
     let possible_id = sqlx::query_file!("queries/team_check.sql", name)
         .fetch_optional(db)
         .await?;
@@ -59,7 +60,13 @@ async fn check_team(name: &str, db: &PgPool) -> Result<i32, sqlx::Error> {
                             if error_string.as_bytes() == "23505".as_bytes() {
                                 let id = sqlx::query_file!("queries/team_check.sql", name)
                                     .fetch_one(db)
-                                    .await?;
+                                    .await;
+
+                                if let Err(e) = &id {
+                                    eprintln!("Error while checking team {name}. Error = [{e:?}]");
+                                }
+
+                                let id = id?;
 
                                 return Ok(id.team_id);
                             }
@@ -93,7 +100,13 @@ async fn check_place(description: &str, db: &PgPool) -> Result<i32, sqlx::Error>
                             if error_string.as_bytes() == "23505".as_bytes() {
                                 let id = sqlx::query_file!("queries/place_check.sql", description)
                                     .fetch_one(db)
-                                    .await?;
+                                    .await;
+
+                                if let Err(e) = &id {
+                                    eprintln!("Error while checking stadium {description}. Error = [{e:?}]");
+                                }
+
+                                let id = id?;
 
                                 return Ok(id.stadium_id);
                             }
@@ -228,6 +241,8 @@ pub async fn insert_into_database(db: Arc<PgPool>, payload: GameInfo) -> Result<
     let team_2_id = check_team(payload.team_two().name(), &db).await?;
 
     let stadium = check_place(payload.place(), &db).await?;
+
+    eprintln!("Initial checking done.");
 
     let (mut main_hash_map, id2) = map_to_ids(payload.team_one(), payload.team_two(), &db).await?;
 

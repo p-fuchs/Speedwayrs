@@ -1,28 +1,36 @@
 use std::rc::Rc;
 
 use log::info;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use sycamore::{web::Html, view::View, view, reactive::{Scope, Signal, create_signal, create_selector}, futures::spawn_local_scoped, prelude::Indexed, Prop};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use sycamore::{
+    futures::spawn_local_scoped,
+    prelude::Indexed,
+    reactive::{create_selector, create_signal, Scope, Signal},
+    view,
+    view::View,
+    web::Html,
+    Prop,
+};
 
+use crate::utils::fetch_json_data;
 use crate::ApplicationData;
 
 #[derive(Deserialize, Debug, Clone)]
 struct Team {
     name: String,
-    id: i32
+    id: i32,
 }
 
 const TEAM_SEARCH: &'static str = const_format::formatcp!("{}/data/teams", crate::SERVER_ADDRESS);
 const TEAM_INFO: &'static str = const_format::formatcp!("{}/data/team_info", crate::SERVER_ADDRESS);
 const TEAM_LIKE: &'static str = const_format::formatcp!("{}/utils/like", crate::SERVER_ADDRESS);
-const TEAM_STATS: &'static str = const_format::formatcp!("{}/data/team_stats", crate::SERVER_ADDRESS);
+const TEAM_STATS: &'static str =
+    const_format::formatcp!("{}/data/team_stats", crate::SERVER_ADDRESS);
 
 async fn search_request(team: String) -> Result<Vec<Team>, ()> {
     let request = gloo_net::http::Request::post(TEAM_SEARCH)
         .header("Content-Type", "application/json")
-        .body(serde_json::to_string(&serde_json::json!({
-            "team_name": team
-        })).unwrap());
+        .body(serde_json::to_string(&serde_json::json!({ "team_name": team })).unwrap());
 
     match crate::client::execute(request).await {
         Err(e) => {
@@ -40,18 +48,14 @@ async fn search_request(team: String) -> Result<Vec<Team>, ()> {
 
                         Err(())
                     }
-                    Ok(text) => {
-                        Ok(
-                            serde_json::from_str(&text).unwrap()
-                        )
-                    }
+                    Ok(text) => Ok(serde_json::from_str(&text).unwrap()),
                 }
             }
         }
     }
 }
 
-pub fn TeamsPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
+pub fn TeamsPage<'a, G: Html>(cx: Scope<'a>) -> View<G> {
     let team_name: &Signal<String> = create_signal(cx, String::new());
     let search_result: &Signal<Option<Vec<Team>>> = create_signal(cx, None);
     let error_occurred: &Signal<bool> = create_signal(cx, false);
@@ -68,7 +72,7 @@ pub fn TeamsPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
                 }
                 Err(()) => {
                     error_occurred.set(true);
-                } 
+                }
             }
         })
     };
@@ -97,7 +101,7 @@ pub fn TeamsPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
                         }
                     }
                 }).collect());
-        
+
                 view! {
                     cx,
                     table(class="border-separate border border-slate-700 w-80 shadow-sm bg-indigo-400 text-center") {
@@ -125,9 +129,9 @@ pub fn TeamsPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
                     label(class="w-full mt-5", for="team") {
                         "Team name"
                     }
-    
+
                     br() {}
-    
+
                     input(
                         class="placeholder:italic rounded-md shadow-inner p-3 mt-2 mb-4",
                         type="text",
@@ -136,7 +140,7 @@ pub fn TeamsPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
                         placeholder="Team name",
                         id="team",
                         bind:value=team_name) {
-    
+
                     }
                 }
 
@@ -174,7 +178,7 @@ pub fn TeamsPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
 #[derive(Prop, Copy, Clone)]
 pub struct TeamInfo<'a> {
     username: &'a Signal<Option<String>>,
-    team_id: i32
+    team_id: i32,
 }
 
 #[derive(Deserialize, PartialEq, Clone)]
@@ -182,14 +186,14 @@ struct MatchInfo {
     match_id: i32,
     opponent_name: String,
     opponent_id: i32,
-    date: String
+    date: String,
 }
 
 #[derive(Deserialize, Clone)]
 struct ResponseMatchInfo {
     team_name: String,
     last_matches: Vec<MatchInfo>,
-    user_like: Option<bool>
+    user_like: Option<bool>,
 }
 
 impl ResponseMatchInfo {
@@ -200,39 +204,45 @@ impl ResponseMatchInfo {
 
 const PAGE_SIZE: u32 = 10;
 
-async fn request_info(team_id: i32, response: &Signal<Option<ResponseMatchInfo>>, connection_error: &Signal<bool>, page: u32) {
+async fn request_info(
+    team_id: i32,
+    response: &Signal<Option<ResponseMatchInfo>>,
+    connection_error: &Signal<bool>,
+    page: u32,
+) {
     let request = gloo_net::http::Request::post(TEAM_INFO)
         .header("Content-Type", "application/json")
-        .body(&serde_json::json!({
-            "team_id": team_id,
-            "skip_first": PAGE_SIZE * (page - 1),
-            "step": PAGE_SIZE
-        }).to_string());
+        .body(
+            &serde_json::json!({
+                "team_id": team_id,
+                "skip_first": PAGE_SIZE * (page - 1),
+                "step": PAGE_SIZE
+            })
+            .to_string(),
+        );
 
     let query_result = crate::client::execute(request).await;
 
     match query_result {
-        Ok(query_response) => {
-            match query_response.text().await {
-                Ok(body) => {
-                    match serde_json::from_str::<ResponseMatchInfo>(&body) {
-                        Ok(team_info) => {
-                            response.set(Some(team_info));
-                        }
-                        Err(e) => {
-                            log::error!("Unable to parse server team_info response. Error = [{e:?}]");
-                        }
-                    }
+        Ok(query_response) => match query_response.text().await {
+            Ok(body) => match serde_json::from_str::<ResponseMatchInfo>(&body) {
+                Ok(team_info) => {
+                    response.set(Some(team_info));
                 }
                 Err(e) => {
-                    log::error!("Unable to get text body of team_info response. Error = [{e:?}]");
-
-                    connection_error.set(true);
+                    log::error!("Unable to parse server team_info response. Error = [{e:?}]");
                 }
+            },
+            Err(e) => {
+                log::error!("Unable to get text body of team_info response. Error = [{e:?}]");
+
+                connection_error.set(true);
             }
-        }
+        },
         Err(query_error) => {
-            log::error!("Unable to execute request of team_info function. Error = [{query_error:?}]");
+            log::error!(
+                "Unable to execute request of team_info function. Error = [{query_error:?}]"
+            );
 
             connection_error.set(true)
         }
@@ -241,15 +251,13 @@ async fn request_info(team_id: i32, response: &Signal<Option<ResponseMatchInfo>>
 
 #[derive(Deserialize)]
 struct PostLikeResponse {
-    team_like: Option<bool>
+    team_like: Option<bool>,
 }
 
 async fn post_like(team_id: i32, team_info: &Signal<Option<ResponseMatchInfo>>) {
     let request = gloo_net::http::Request::post(TEAM_LIKE)
         .header("Content-Type", "application/json")
-        .body(&serde_json::json!({
-            "team_id": team_id
-        }).to_string());
+        .body(&serde_json::json!({ "team_id": team_id }).to_string());
 
     let response = crate::client::execute(request).await;
 
@@ -258,30 +266,28 @@ async fn post_like(team_id: i32, team_info: &Signal<Option<ResponseMatchInfo>>) 
             log::error!("Like response returned error. Error = [{e:?}]");
         }
         Ok(response) => {
-           if response.status() == http::StatusCode::OK {
-               match response.text().await {
-                   Ok(body) => {
-                       match serde_json::from_str::<PostLikeResponse>(&body) {
-                           Ok(like_response) => {
-                               let info_ref = team_info.get();
-                               let mut info_clone = info_ref.as_ref().clone();
+            if response.status() == http::StatusCode::OK {
+                match response.text().await {
+                    Ok(body) => match serde_json::from_str::<PostLikeResponse>(&body) {
+                        Ok(like_response) => {
+                            let info_ref = team_info.get();
+                            let mut info_clone = info_ref.as_ref().clone();
 
-                               if let Some(info) = &mut info_clone {
-                                   info.user_like = like_response.team_like;
+                            if let Some(info) = &mut info_clone {
+                                info.user_like = like_response.team_like;
 
-                                   team_info.set(info_clone);
-                               }
-                           }
-                           Err(e) => {
-                               log::error!("Unable to deserialize PostLikeResponse. Error = [{e:?}]");
-                           }
-                       }
-                   }
-                   Err(e) => {
-                       log::error!("Unable to get text body of response. Error = [{e:?}]");
-                   }
-               }
-           } 
+                                team_info.set(info_clone);
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Unable to deserialize PostLikeResponse. Error = [{e:?}]");
+                        }
+                    },
+                    Err(e) => {
+                        log::error!("Unable to get text body of response. Error = [{e:?}]");
+                    }
+                }
+            }
         }
     }
 }
@@ -290,7 +296,7 @@ async fn post_like(team_id: i32, team_info: &Signal<Option<ResponseMatchInfo>>) 
 struct GameData {
     id: i32,
     opponent: String,
-    games: u32
+    games: u32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -299,21 +305,18 @@ struct TeamStats {
     looses: u32,
     ties: u32,
     often_looses: Vec<GameData>,
-    often_wins: Vec<GameData>
+    often_wins: Vec<GameData>,
 }
 
-
 async fn update_team_stats(team_id: i32, team_stats: &Signal<Option<TeamStats>>) {
-    let req_body = serde_json::json!({
-        "team_id": team_id
-    });
+    let req_body = serde_json::json!({ "team_id": team_id });
 
     if let Some(stats) = fetch_json_data(TEAM_STATS, &req_body).await {
         team_stats.set(stats);
     }
 }
 
-pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
+pub fn TeamInfoPage<'a, G: Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
     let page = create_signal(cx, 1u32);
     let connection_error = create_signal(cx, false);
     let team_info = create_signal(cx, None as Option<ResponseMatchInfo>);
@@ -321,7 +324,13 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
 
     let update_info = move || {
         spawn_local_scoped(cx, async move {
-            request_info(info.team_id, team_info, connection_error, *page.get().as_ref()).await;
+            request_info(
+                info.team_id,
+                team_info,
+                connection_error,
+                *page.get().as_ref(),
+            )
+            .await;
         })
     };
 
@@ -345,40 +354,24 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
         }
     };
 
-    let iterable_match_info = create_selector(cx, move || {
-        match team_info.get().as_ref() {
-            None => {
-                Vec::new()
-            }
-            Some(vec) => {
-                vec.last_matches.clone()
-            }
-        }
+    let iterable_match_info = create_selector(cx, move || match team_info.get().as_ref() {
+        None => Vec::new(),
+        Some(vec) => vec.last_matches.clone(),
     });
 
-    let iterable_lost_games = create_selector(cx, move || {
-        match team_stats.get().as_ref() {
-            None => Vec::new(),
-            Some(vec) => vec.often_looses.clone() 
-        }
+    let iterable_lost_games = create_selector(cx, move || match team_stats.get().as_ref() {
+        None => Vec::new(),
+        Some(vec) => vec.often_looses.clone(),
     });
 
-    let iterable_won_games = create_selector(cx, move || {
-        match team_stats.get().as_ref() {
-            None => Vec::new(),
-            Some(vec) => vec.often_wins.clone()
-        }
+    let iterable_won_games = create_selector(cx, move || match team_stats.get().as_ref() {
+        None => Vec::new(),
+        Some(vec) => vec.often_wins.clone(),
     });
 
-    let like_selector = create_selector(cx, move || {
-        match team_info.get().as_ref() {
-            Some(info) => {
-                info.user_like
-            }
-            None => {
-                None
-            }
-        }
+    let like_selector = create_selector(cx, move || match team_info.get().as_ref() {
+        Some(info) => info.user_like,
+        None => None,
     });
 
     let update_like = move |_| {
@@ -414,7 +407,7 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
                             Some(liked) => {
                                 if !liked {
                                     view! {
-                                        cx,                             
+                                        cx,
                                         div(class="absolute right-10") {
                                             img(class="cursor-pointer", src="https://i.imgur.com/8XUePqB.png", width=50, heigh=50, on:click=update_like) {}
                                         }
@@ -508,7 +501,7 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
                                                 }
                                             }
                                         }
-                                    }    
+                                    }
                                 }
                                 None => {
                                     view! {
@@ -547,7 +540,7 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
                                                     }
                                                     tbody(class="font-normal") {
                                                         Indexed(
-                                                            iterable = iterable_lost_games, 
+                                                            iterable = iterable_lost_games,
                                                             view = |cx, lost_game| view! {
                                                                 cx,
                                                                 tr() {
@@ -563,7 +556,7 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
                                                                     }
                                                                 }
                                                             }
-                                                            
+
                                                             )
                                                     }
                                                 }
@@ -603,7 +596,7 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
                                                     }
                                                     tbody(class="font-normal") {
                                                         Indexed(
-                                                            iterable = iterable_won_games, 
+                                                            iterable = iterable_won_games,
                                                             view = |cx, won_game| view! {
                                                                 cx,
                                                                 tr() {
@@ -619,7 +612,7 @@ pub fn TeamInfoPage<'a, G:Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
                                                                     }
                                                                 }
                                                             }
-                                                            
+
                                                             )
                                                     }
                                                 }
