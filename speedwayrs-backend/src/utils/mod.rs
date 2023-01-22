@@ -1,3 +1,5 @@
+mod chat;
+
 use std::sync::Arc;
 
 use axum::{extract::State, response::IntoResponse, routing::post, Extension, Json, Router};
@@ -90,4 +92,5 @@ async fn like(
 
 pub fn utils_router() -> Router<crate::AppData> {
     Router::new().route("/like", post(like))
-}
+        .nest("/chat", chat::chat_router())
+    }

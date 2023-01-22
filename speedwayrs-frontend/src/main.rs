@@ -1,13 +1,16 @@
 mod client;
+mod chat;
 mod login;
 mod match_info;
 mod navbar;
 mod players;
 mod signup;
+mod games;
 mod teams;
 mod utils;
 
 use login::LoginPage;
+use chat::ChatPage;
 use match_info::MatchInfo;
 use navbar::Navbar;
 use players::PlayersPage;
@@ -53,6 +56,10 @@ pub enum ApplicationRoute {
     Players,
     #[to("/match/<match_id>")]
     Match { match_id: i32 },
+    #[to("/chat")]
+    Chat,
+    #[to("/games")]
+    Games,
     #[not_found]
     NotFound,
 }
@@ -87,6 +94,18 @@ fn start_application<G: Html>(cx: Scope) -> View<G> {
                                         SignupPage()
                                     }
                                 }
+                                ApplicationRoute::Games => {
+                                    view! {
+                                        cx,
+                                        games::GamesPage(username=username_data)
+                                    }
+                                }
+                                ApplicationRoute::Chat => {
+                                    view! {
+                                        cx,
+                                        ChatPage(username=username_data)
+                                    }
+                                }
                                 ApplicationRoute::Teams => {
                                     view! {
                                         cx,
@@ -110,7 +129,7 @@ fn start_application<G: Html>(cx: Scope) -> View<G> {
                                             cx,
                                             MatchInfo(match_id=*match_id)
                                         }
-                                    }
+                                }
                                 a => {
                                     eprintln!("{a:?}");
                                     view! {

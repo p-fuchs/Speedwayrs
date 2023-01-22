@@ -1,4 +1,18 @@
+use gloo_net::{http::Response, Error};
 use serde::{de::DeserializeOwned, Serialize};
+
+pub async fn fetch_response<S: Serialize>(
+    source: &str,
+    body: &S
+) -> Result<Response, Error> {
+    let json_body = serde_json::to_string(body).unwrap();
+
+    let request = gloo_net::http::Request::post(source)
+        .header("Content-Type", "application/json")
+        .body(&json_body);
+
+    crate::client::execute(request).await
+}
 
 pub async fn fetch_json_data<T: DeserializeOwned, S: Serialize>(
     source: &str,
