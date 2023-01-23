@@ -236,6 +236,14 @@ async fn insert_run_squad_score<'a, T: PgExecutor<'a>>(
     Ok(())
 }
 
+async fn insert_player_game_team<'a, T: PgExecutor<'a>>(db: T, player: i32, team: i32, game: i32) -> Result<(), sqlx::Error> {
+    let _ = sqlx::query_file!("queries/insert_game_team.sql", player, team, game)
+        .execute(db)
+        .await?;
+
+    Ok(())
+}
+
 pub async fn insert_into_database(db: Arc<PgPool>, payload: GameInfo) -> Result<(), sqlx::Error> {
     let team_1_id = check_team(payload.team_one().name(), &db).await?;
     let team_2_id = check_team(payload.team_two().name(), &db).await?;
@@ -251,22 +259,30 @@ pub async fn insert_into_database(db: Arc<PgPool>, payload: GameInfo) -> Result<
     let mut transaction = db.begin().await?;
 
     let game_id = insert_game(&payload, team_1_id, team_2_id, stadium, &mut transaction).await?;
+    println!("GAME_ID: {game_id}");
 
-    for player in payload
-        .team_one()
-        .players()
-        .iter()
-        .chain(payload.team_two().players().iter())
-        .filter(|entry| {
-            !entry.name().eq_ignore_ascii_case("Brak")
-                || !entry.surname().eq_ignore_ascii_case("zawodnika")
-        })
-    {
+    let mut index = 0;
+    for player in payload.team_one().players().iter().filter(|player| !player.name().eq_ignore_ascii_case("brak") || !player.surname().eq_ignore_ascii_case("zawodnika")) {
         let key = (player.name(), player.surname());
         let id = main_hash_map.get(&key).unwrap();
+        
+        insert_player_game_team(&mut transaction, *id, team_1_id, game_id).await?;
 
-        for (index, score) in player.scores().iter().enumerate() {
+        for score in player.scores().iter() {
             insert_player_score(*id, game_id, index as i32, score, &mut transaction).await?;
+            index += 1;
+        }
+    }
+
+    for player in payload.team_two().players().iter().filter(|player| !player.name().eq_ignore_ascii_case("brak") || !player.surname().eq_ignore_ascii_case("zawodnika")) {
+        let key = (player.name(), player.surname());
+        let id = main_hash_map.get(&key).unwrap();
+        
+        insert_player_game_team(&mut transaction, *id, team_2_id, game_id).await?;
+
+        for score in player.scores().iter() {
+            insert_player_score(*id, game_id, index as i32, score, &mut transaction).await?;
+            index += 1;
         }
     }
 

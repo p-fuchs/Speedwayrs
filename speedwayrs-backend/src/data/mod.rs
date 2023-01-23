@@ -1,10 +1,12 @@
+mod player_data;
+mod main_info;
 mod match_info;
 mod team_data;
 mod team_stats;
 
 use std::sync::Arc;
 
-use axum::{body::Body, extract::State, response::IntoResponse, routing::post, Json, Router};
+use axum::{body::Body, extract::State, response::IntoResponse, routing::{post, get}, Json, Router};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -109,4 +111,8 @@ pub fn data_router() -> Router<AppData> {
         .route("/team_info", post(team_data::team_data))
         .route("/team_stats", post(team_stats::team_stats))
         .route("/match_info", post(match_info::match_info_handler))
+        .route("/last_games", post(main_info::last_games))
+        .route("/liked_teams", get(main_info::liked_teams))
+        .route("/liked_players", get(main_info::liked_players))
+        .route("/player_info", post(player_data::get_player_data))
 }

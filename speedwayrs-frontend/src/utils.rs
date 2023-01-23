@@ -14,6 +14,27 @@ pub async fn fetch_response<S: Serialize>(
     crate::client::execute(request).await
 }
 
+pub async fn fetch_get<T: DeserializeOwned>(
+    source: &str
+) -> Option<T> {
+    let request = gloo_net::http::Request::get(source);
+
+    match crate::client::execute(request).await {
+        Err(e) => {
+            log::error!("Error while querying get. Error = [{e:?}]");
+
+            None
+        }
+        Ok(resp) => {
+            if let Ok(body) = resp.text().await {
+                serde_json::from_str(&body).ok()
+            } else {
+                None
+            }
+        }
+    }
+}
+
 pub async fn fetch_json_data<T: DeserializeOwned, S: Serialize>(
     source: &str,
     body: &S,

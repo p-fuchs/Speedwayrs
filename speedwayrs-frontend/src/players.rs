@@ -5,13 +5,13 @@ use serde::Deserialize;
 use sycamore::{
     futures::spawn_local_scoped,
     prelude::Indexed,
-    reactive::{create_signal, Scope, Signal},
+    reactive::{create_signal, Scope, Signal, create_selector},
     view,
     view::View,
-    web::Html,
+    web::Html, Prop,
 };
 
-use crate::ApplicationData;
+use crate::{ApplicationData, fetch_json_data};
 
 #[derive(Deserialize, Debug, Clone)]
 struct Player {
@@ -168,6 +168,190 @@ pub fn PlayersPage<'a, G: Html>(cx: Scope<'a>) -> View<G> {
                     render_table(search_result.get())
                 )
             }
+        }
+    }
+}
+
+const PLAYER_INFO_ENDPOINT: &str = const_format::formatcp!("{}/data/player_info", crate::SERVER_ADDRESS);
+
+#[derive(Prop)]
+pub struct PlayerPageProps<'a> {
+    player_id: i32,
+    username: &'a Signal<Option<String>>
+}
+
+#[derive(Deserialize, Clone)]
+struct PlayerInfo {
+    three_points: u32,
+    two_points: u32,
+    one_points: u32,
+    zero_points: u32,
+    stars: u32,
+    accidents: u32,
+    former_teams: Vec<(i32, String, u32)>,
+    name: String
+}
+
+async fn get_player_info(player_id: i32, info: &Signal<Option<PlayerInfo>>) {
+    let body = serde_json::json!({
+        "player": player_id
+    });
+
+    info.set(fetch_json_data(PLAYER_INFO_ENDPOINT, &body).await);
+}
+
+const DESC_CSS: &str = "border border-indigo-800 p-3 bg-indigo-700/50";
+const VAL_CSS: &str = "border border-indigo-600 p-3";
+
+pub fn PlayerPage<'a, G: Html>(cx: Scope<'a>, props: PlayerPageProps<'a>) -> View<G> {
+    let player_info = create_signal(cx, None);
+
+    spawn_local_scoped(cx, async move {
+        get_player_info(props.player_id, player_info).await;
+    });
+
+    let points_mean = create_selector(cx, || {
+        let mean = match player_info.get().as_ref() {
+            None => 0.0,
+            Some(info) => {
+                let counter = 3*info.three_points + 2*info.two_points + info.one_points;
+                let denominator = info.three_points + info.two_points + info.one_points + info.zero_points;
+
+                if denominator == 0 {
+                    0.0
+                } else {
+                    (counter as f64) / (denominator as f64)
+                }
+            }
+        };
+
+        format!("{:.3}", mean)
+    });
+
+    let iterable_history = create_selector(cx, || {
+        match player_info.get().as_ref() {
+            None => Vec::new(),
+            Some(info) => {
+                info.former_teams.clone()
+            }
+        }
+    });
+
+    view! {
+        cx,
+        div(class="flex flex-col bg-indigo-200 h-screen w-screen") {
+            (
+                if let Some(info) = player_info.get().as_ref().clone() {
+                    view! {
+                        cx,
+                        div(class="grid grid-rows-auto grid-cols-2 h-3/4 w-full") {
+                            div(class="row-span-1 col-span-2 p-5 text-center") {
+                                a(class="text-6xl underline font-black align-left") {
+                                    (info.name)
+                                }
+                            }
+                            div(class="flex row-span-auto cols-span-1 p-3 justify-center") {
+                                table(class="border border-separate border-spacing-2 border border-2 border-double border-indigo-900 p-5 text-center") {
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Zdobycie trzech punktów"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.three_points)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Zdobycie dwóch punktów"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.two_points)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Zdobycie jednego punktu"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.one_points)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Zdobycie zera punktów"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.zero_points)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Zdobycie gwiazd"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.stars)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Wypadki"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.accidents)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Średnia liczba zdobytych punktów"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (*points_mean.get())
+                                        }
+                                    }
+                                }     
+                            }
+                            div(class="flex justify-center row-span-1 p-3 cols-span-1") {
+                                table(class="grow-0 border border-separate border-spacing-2 border border-2 border-double border-indigo-900 p-5 text-center") {
+                                    thead() {
+                                        tr() {
+                                            th(class=DESC_CSS) {
+                                                "Nazwa drużyny"
+                                            }
+                                            th(class=DESC_CSS) {
+                                                "Ilość zagranych meczy"
+                                            }
+                                        }
+                                    }
+                                    tbody() {
+                                        Indexed(
+                                            iterable=iterable_history,
+                                            view = |cx, data| view! {
+                                                cx,
+                                                tr() {
+                                                    td(class="border border-indigo-600 p-3") {
+                                                        a(class="hover:text-green-600", href=format!("/team/{}", data.0)) {
+                                                            (data.1)
+                                                        }
+                                                    }
+                                                    td(class=VAL_CSS) {
+                                                        (data.2)
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    view! {
+                        cx,
+                    
+                    }
+                }
+            )
+            div(class="h-auto w-auto") {}
         }
     }
 }

@@ -102,7 +102,7 @@ fn RunResult<'a, G: Html>(cx: Scope<'a>, run_info: RunResultInfo<'a, G>) -> View
                             cx,
                             tr() {
                                 td(class="border border-2 rounded-md border-indigo-300/50") {
-                                    a(class="hover:text-green-700", href=format!("player/{}", to_view.0)) {
+                                    a(class="hover:text-green-700", href=format!("/player/{}", to_view.0)) {
                                         (to_view.1)
                                     }
                                 }

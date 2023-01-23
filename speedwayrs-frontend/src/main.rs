@@ -13,7 +13,7 @@ use login::LoginPage;
 use chat::ChatPage;
 use match_info::MatchInfo;
 use navbar::Navbar;
-use players::PlayersPage;
+use players::{PlayersPage, PlayerPage};
 use signup::SignupPage;
 use sycamore::{
     futures::spawn_local_scoped,
@@ -26,6 +26,7 @@ use sycamore::{
 use sycamore_router::{HistoryIntegration, Route, Router};
 use teams::{TeamInfoPage, TeamsPage};
 pub use utils::fetch_json_data;
+pub use utils::fetch_get;
 
 const SERVER_ADDRESS: &'static str = "http://localhost:47123";
 
@@ -56,6 +57,8 @@ pub enum ApplicationRoute {
     Players,
     #[to("/match/<match_id>")]
     Match { match_id: i32 },
+    #[to("/player/<player_id>")]
+    Player { player_id: i32 },
     #[to("/chat")]
     Chat,
     #[to("/games")]
@@ -110,6 +113,12 @@ fn start_application<G: Html>(cx: Scope) -> View<G> {
                                     view! {
                                         cx,
                                         TeamsPage()
+                                    }
+                                }
+                                ApplicationRoute::Player {player_id} => {
+                                    view! {
+                                        cx,
+                                        PlayerPage(username=username_data, player_id=*player_id)
                                     }
                                 }
                                 ApplicationRoute::Players => {

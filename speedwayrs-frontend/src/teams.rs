@@ -383,10 +383,10 @@ pub fn TeamInfoPage<'a, G: Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
 
     view! {
         cx,
-        div(class="h-screen w-screen bg-indigo-200") {
+        div(class="h-full w-full bg-indigo-200") {
             br() {}
 
-            div(class="flex flex-wrap flex-col items-center ml-4 mt-4 mb-15 static") {
+            div(class="flex flex-wrap flex-col items-center ml-4 mt-4 pt-5 mb-15 static") {
                 a(class="font-sans text-6xl ml-20 font-black underline tracking-wide text-left text-indigo-800 decoration-double") {
                     (
                         {
@@ -431,7 +431,7 @@ pub fn TeamInfoPage<'a, G: Html>(cx: Scope<'a>, info: TeamInfo<'a>) -> View<G> {
                 )
             }
 
-            div(class="flex flex-row flex-nowrap w-screen h-screen") {
+            div(class="flex flex-row flex-nowrap w-screen h-screen pt-10") {
                 div(class="flex flex-col basis-1/2 items-center text-lg") {
                     a(class="font-extrabold") {
                         "Statystyki"
