@@ -75,38 +75,7 @@ fn main() -> Result<(), String> {
             .expect("Unable to build tokio runtime.");
 
         loader_runtime.block_on(async move {
-            let options = sqlx::postgres::PgPoolOptions::default()
-                .before_acquire(|x, m| {
-                    Box::pin(async move {
-                        eprintln!(
-                            "Trying connection. {:?} {:?}",
-                            x.server_version_num(),
-                            m.age
-                        );
-
-                        Ok(true)
-                    })
-                })
-                .after_release(|x, m| {
-                    Box::pin(async move {
-                        eprintln!(
-                            "Connection release. {:?} {:?}",
-                            x.server_version_num(),
-                            m.age
-                        );
-
-                        Ok(true)
-                    })
-                })
-                .after_connect(|x, m| {
-                    Box::pin(async move {
-                        eprintln!("Connected. {:?} {:?}", x.server_version_num(), m.age);
-
-                        Ok(())
-                    })
-                });
-
-            let postgres_pool = match options.connect_lazy(&database_str) {
+            let postgres_pool = match sqlx::postgres::PgPool::connect(&database_str).await {
                 Err(e) => {
                     eprintln!("Error returned from database. Error = {e:?}");
 
@@ -126,6 +95,7 @@ fn main() -> Result<(), String> {
 
     let deserializer = serde_json::Deserializer::from_reader(&file).into_iter::<GameInfo>();
 
+    let mut read = 0;
     for input in deserializer {
         match input {
             Err(e) => {
@@ -138,6 +108,8 @@ fn main() -> Result<(), String> {
                 }
             }
             Ok(input) => {
+                read += 1;
+
                 if let Err(e) = tx.send(LoaderTask::Load(input)) {
                     panic!("Error while sending task. Error = [{e:?}]");
                 }
@@ -151,6 +123,8 @@ fn main() -> Result<(), String> {
             e.to_string()
         );
     }
+
+    eprintln!("Deserializer read {read} structs.");
 
     tokio_handle.join().map_err(|e| format!("{e:?}"))
 }

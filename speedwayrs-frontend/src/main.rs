@@ -1,16 +1,19 @@
-mod match_info;
 mod client;
+mod chat;
 mod login;
+mod match_info;
 mod navbar;
 mod players;
 mod signup;
+mod games;
 mod teams;
 mod utils;
 
-pub use utils::fetch_json_data;
 use login::LoginPage;
+use chat::ChatPage;
+use match_info::MatchInfo;
 use navbar::Navbar;
-use players::PlayersPage;
+use players::{PlayersPage, PlayerPage};
 use signup::SignupPage;
 use sycamore::{
     futures::spawn_local_scoped,
@@ -22,6 +25,8 @@ use sycamore::{
 };
 use sycamore_router::{HistoryIntegration, Route, Router};
 use teams::{TeamInfoPage, TeamsPage};
+pub use utils::fetch_json_data;
+pub use utils::fetch_get;
 
 const SERVER_ADDRESS: &'static str = "http://localhost:47123";
 
@@ -50,6 +55,14 @@ pub enum ApplicationRoute {
     Team { team_id: i32 },
     #[to("/players")]
     Players,
+    #[to("/match/<match_id>")]
+    Match { match_id: i32 },
+    #[to("/player/<player_id>")]
+    Player { player_id: i32 },
+    #[to("/chat")]
+    Chat,
+    #[to("/games")]
+    Games,
     #[not_found]
     NotFound,
 }
@@ -84,10 +97,28 @@ fn start_application<G: Html>(cx: Scope) -> View<G> {
                                         SignupPage()
                                     }
                                 }
+                                ApplicationRoute::Games => {
+                                    view! {
+                                        cx,
+                                        games::GamesPage(username=username_data)
+                                    }
+                                }
+                                ApplicationRoute::Chat => {
+                                    view! {
+                                        cx,
+                                        ChatPage(username=username_data)
+                                    }
+                                }
                                 ApplicationRoute::Teams => {
                                     view! {
                                         cx,
                                         TeamsPage()
+                                    }
+                                }
+                                ApplicationRoute::Player {player_id} => {
+                                    view! {
+                                        cx,
+                                        PlayerPage(username=username_data, player_id=*player_id)
                                     }
                                 }
                                 ApplicationRoute::Players => {
@@ -101,6 +132,12 @@ fn start_application<G: Html>(cx: Scope) -> View<G> {
                                         cx,
                                         TeamInfoPage(username=username_data, team_id=*team_id)
                                     }
+                                }
+                                ApplicationRoute::Match {match_id} => {
+                                        view! {
+                                            cx,
+                                            MatchInfo(match_id=*match_id)
+                                        }
                                 }
                                 a => {
                                     eprintln!("{a:?}");

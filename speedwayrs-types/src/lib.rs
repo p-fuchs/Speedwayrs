@@ -40,6 +40,14 @@ impl MatchResult {
         &self.team_1
     }
 
+    pub fn sort_runs(&mut self) {
+        self.runs.sort_by(|a, b| a.number.cmp(&b.number));
+    }
+
+    pub fn runs(&self) -> &[RunInfo] {
+        &self.runs
+    }
+
     pub fn second_team_name(&self) -> &str {
         &self.team_2
     }
@@ -53,12 +61,34 @@ impl MatchResult {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct RunInfo {
     number: u8,
     time: Option<(u32, u16)>,
     // First field represents player name and second field represents player's score.
-    player_scores: Vec<(String, String)>,
+    player_scores: Vec<(i32, String, String)>,
+}
+
+impl RunInfo {
+    pub fn scores(&self) -> &[(i32, String, String)] {
+        &self.player_scores
+    }
+
+    pub fn get_time(&self) -> Option<(u32, u16)> {
+        self.time
+    }
+
+    pub fn time_string(&self) -> String {
+        if let Some(t) = self.time {
+            format!("{}.{} s", t.0, t.1)
+        } else {
+            "".into()
+        }
+    }
+
+    pub fn number(&self) -> u8 {
+        self.number
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -80,6 +110,19 @@ impl PlayerResult {
 
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
+    }
+
+    pub fn to_pretty(&self) -> String {
+        match self {
+            PlayerResult::Score(score) => format!("{}", score),
+            PlayerResult::ScoreWithStar(score) => format!("{}*", score),
+            PlayerResult::Fall => "Upadek".into(),
+            PlayerResult::Reserve => "Rezerwa".into(),
+            PlayerResult::Defect => "Defekt".into(),
+            PlayerResult::Tape => "Taśma".into(),
+            PlayerResult::NotFinished => "Nie ukończono".into(),
+            PlayerResult::None => "Brak wyniku?".into()
+        }
     }
 }
 
@@ -104,7 +147,7 @@ impl Player {
 }
 
 impl RunInfo {
-    pub fn new(number: u8, time: Option<(u32, u16)>, player_scores: Vec<(String, String)>) -> Self {
+    pub fn new(number: u8, time: Option<(u32, u16)>, player_scores: Vec<(i32, String, String)>) -> Self {
         Self {
             number,
             time,

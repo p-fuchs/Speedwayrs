@@ -1,8 +1,9 @@
 use sycamore::{
+    futures::spawn_local_scoped,
     reactive::{create_selector, create_signal, Scope, Signal},
     view,
     view::View,
-    web::Html, futures::spawn_local_scoped,
+    web::Html,
 };
 use sycamore_router::navigate;
 
@@ -12,17 +13,18 @@ use crate::ApplicationData;
 enum LoginError {
     WrongCredentials,
     ServerProblem,
-    EmptyField
+    EmptyField,
 }
 
-const LOGIN_ADDRESS: &'static str = const_format::formatcp!("{}/users/login", crate::SERVER_ADDRESS);
+const LOGIN_ADDRESS: &'static str =
+    const_format::formatcp!("{}/users/login", crate::SERVER_ADDRESS);
 
 impl LoginError {
     pub fn error_title(&self) -> &'static str {
         match self {
             Self::WrongCredentials => "Wrong credentials.",
             Self::ServerProblem => "Problem with server.",
-            Self::EmptyField => "Empty field."
+            Self::EmptyField => "Empty field.",
         }
     }
 
@@ -32,9 +34,7 @@ impl LoginError {
             Self::ServerProblem => {
                 "This may be temporary issue with the server. Please try again later."
             }
-            Self::EmptyField => {
-                "Please fill in all the fields."
-            }
+            Self::EmptyField => "Please fill in all the fields.",
         }
     }
 }
@@ -42,10 +42,13 @@ impl LoginError {
 async fn login_request(username: String, password: String) -> Result<(), LoginError> {
     let request = gloo_net::http::Request::post(LOGIN_ADDRESS)
         .header("Content-Type", "application/json")
-        .body(serde_json::to_string(&serde_json::json!({
-            "username": username,
-            "password": password
-        })).unwrap());
+        .body(
+            serde_json::to_string(&serde_json::json!({
+                "username": username,
+                "password": password
+            }))
+            .unwrap(),
+        );
 
     match crate::client::execute(request).await {
         Err(e) => {
@@ -53,18 +56,16 @@ async fn login_request(username: String, password: String) -> Result<(), LoginEr
 
             Err(LoginError::ServerProblem)
         }
-        Ok(response) => {
-            match response.status() {
-                200 => Ok(()),
-                403 => Err(LoginError::WrongCredentials),
-                500 => Err(LoginError::ServerProblem),
-                other => {
-                    log::error!("Got unexpected http status code: {:?})", other);
+        Ok(response) => match response.status() {
+            200 => Ok(()),
+            403 => Err(LoginError::WrongCredentials),
+            500 => Err(LoginError::ServerProblem),
+            other => {
+                log::error!("Got unexpected http status code: {:?})", other);
 
-                    panic!("Unimplemented status code.");
-                }
+                panic!("Unimplemented status code.");
             }
-        }
+        },
     }
 }
 
@@ -90,7 +91,12 @@ pub fn LoginPage<'a, G: Html>(cx: Scope<'a>, data: ApplicationData<'a>) -> View<
             login_process.set(true);
 
             spawn_local_scoped(cx, async move {
-                match login_request(username.get().as_ref().to_owned(), password.get().as_ref().to_owned()).await {
+                match login_request(
+                    username.get().as_ref().to_owned(),
+                    password.get().as_ref().to_owned(),
+                )
+                .await
+                {
                     Ok(()) => {
                         successful_login.set(true);
                         crate::client::update_session_info(cx, data.get_username()).await;

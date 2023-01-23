@@ -2,24 +2,30 @@ use std::rc::Rc;
 
 use log::info;
 use serde::Deserialize;
-use sycamore::{web::Html, view::View, view, reactive::{Scope, Signal, create_signal}, futures::spawn_local_scoped, prelude::Indexed};
+use sycamore::{
+    futures::spawn_local_scoped,
+    prelude::Indexed,
+    reactive::{create_signal, Scope, Signal, create_selector},
+    view,
+    view::View,
+    web::Html, Prop,
+};
 
-use crate::ApplicationData;
+use crate::{ApplicationData, fetch_json_data};
 
 #[derive(Deserialize, Debug, Clone)]
 struct Player {
     name: String,
-    id: i32
+    id: i32,
 }
 
-const PLAYER_SEARCH: &'static str = const_format::formatcp!("{}/data/players", crate::SERVER_ADDRESS);
+const PLAYER_SEARCH: &'static str =
+    const_format::formatcp!("{}/data/players", crate::SERVER_ADDRESS);
 
 async fn search_request(player: String) -> Result<Vec<Player>, ()> {
     let request = gloo_net::http::Request::post(PLAYER_SEARCH)
         .header("Content-Type", "application/json")
-        .body(serde_json::to_string(&serde_json::json!({
-            "player_name": player 
-        })).unwrap());
+        .body(serde_json::to_string(&serde_json::json!({ "player_name": player })).unwrap());
 
     match crate::client::execute(request).await {
         Err(e) => {
@@ -39,9 +45,7 @@ async fn search_request(player: String) -> Result<Vec<Player>, ()> {
                     }
                     Ok(text) => {
                         log::trace!("Completed search_request().");
-                        Ok(
-                            serde_json::from_str(&text).unwrap()
-                        )
+                        Ok(serde_json::from_str(&text).unwrap())
                     }
                 }
             }
@@ -49,7 +53,7 @@ async fn search_request(player: String) -> Result<Vec<Player>, ()> {
     }
 }
 
-pub fn PlayersPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
+pub fn PlayersPage<'a, G: Html>(cx: Scope<'a>) -> View<G> {
     let player_name: &Signal<String> = create_signal(cx, String::new());
     let search_result: &Signal<Option<Vec<Player>>> = create_signal(cx, None);
     let error_occurred: &Signal<bool> = create_signal(cx, false);
@@ -65,7 +69,7 @@ pub fn PlayersPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
                 }
                 Err(()) => {
                     error_occurred.set(true);
-                } 
+                }
             }
         })
     };
@@ -94,7 +98,7 @@ pub fn PlayersPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
                         }
                     }
                 }).collect());
-        
+
                 view! {
                     cx,
                     table(class="border-separate border border-slate-700 w-80 shadow-sm bg-indigo-400 text-center") {
@@ -122,9 +126,9 @@ pub fn PlayersPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
                     label(class="w-full mt-5", for="team") {
                         "Player name"
                     }
-    
+
                     br() {}
-    
+
                     input(
                         class="placeholder:italic rounded-md shadow-inner p-3 mt-2 mb-4",
                         type="text",
@@ -133,7 +137,7 @@ pub fn PlayersPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
                         placeholder="Player name",
                         id="player",
                         bind:value=player_name) {
-    
+
                     }
                 }
 
@@ -164,6 +168,190 @@ pub fn PlayersPage<'a, G:Html>(cx: Scope<'a>) -> View<G> {
                     render_table(search_result.get())
                 )
             }
+        }
+    }
+}
+
+const PLAYER_INFO_ENDPOINT: &str = const_format::formatcp!("{}/data/player_info", crate::SERVER_ADDRESS);
+
+#[derive(Prop)]
+pub struct PlayerPageProps<'a> {
+    player_id: i32,
+    username: &'a Signal<Option<String>>
+}
+
+#[derive(Deserialize, Clone)]
+struct PlayerInfo {
+    three_points: u32,
+    two_points: u32,
+    one_points: u32,
+    zero_points: u32,
+    stars: u32,
+    accidents: u32,
+    former_teams: Vec<(i32, String, u32)>,
+    name: String
+}
+
+async fn get_player_info(player_id: i32, info: &Signal<Option<PlayerInfo>>) {
+    let body = serde_json::json!({
+        "player": player_id
+    });
+
+    info.set(fetch_json_data(PLAYER_INFO_ENDPOINT, &body).await);
+}
+
+const DESC_CSS: &str = "border border-indigo-800 p-3 bg-indigo-700/50";
+const VAL_CSS: &str = "border border-indigo-600 p-3";
+
+pub fn PlayerPage<'a, G: Html>(cx: Scope<'a>, props: PlayerPageProps<'a>) -> View<G> {
+    let player_info = create_signal(cx, None);
+
+    spawn_local_scoped(cx, async move {
+        get_player_info(props.player_id, player_info).await;
+    });
+
+    let points_mean = create_selector(cx, || {
+        let mean = match player_info.get().as_ref() {
+            None => 0.0,
+            Some(info) => {
+                let counter = 3*info.three_points + 2*info.two_points + info.one_points;
+                let denominator = info.three_points + info.two_points + info.one_points + info.zero_points;
+
+                if denominator == 0 {
+                    0.0
+                } else {
+                    (counter as f64) / (denominator as f64)
+                }
+            }
+        };
+
+        format!("{:.3}", mean)
+    });
+
+    let iterable_history = create_selector(cx, || {
+        match player_info.get().as_ref() {
+            None => Vec::new(),
+            Some(info) => {
+                info.former_teams.clone()
+            }
+        }
+    });
+
+    view! {
+        cx,
+        div(class="flex flex-col bg-indigo-200 h-screen w-screen") {
+            (
+                if let Some(info) = player_info.get().as_ref().clone() {
+                    view! {
+                        cx,
+                        div(class="grid grid-rows-auto grid-cols-2 h-3/4 w-full") {
+                            div(class="row-span-1 col-span-2 p-5 text-center") {
+                                a(class="text-6xl underline font-black align-left") {
+                                    (info.name)
+                                }
+                            }
+                            div(class="flex row-span-auto cols-span-1 p-3 justify-center") {
+                                table(class="border border-separate border-spacing-2 border border-2 border-double border-indigo-900 p-5 text-center") {
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Zdobycie trzech punktów"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.three_points)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Zdobycie dwóch punktów"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.two_points)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Zdobycie jednego punktu"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.one_points)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Zdobycie zera punktów"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.zero_points)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Zdobycie gwiazd"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.stars)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Wypadki"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (info.accidents)
+                                        }
+                                    }
+                                    tr() {
+                                        td(class=DESC_CSS) {
+                                            "Średnia liczba zdobytych punktów"
+                                        }
+                                        td(class=VAL_CSS) {
+                                            (*points_mean.get())
+                                        }
+                                    }
+                                }     
+                            }
+                            div(class="flex justify-center row-span-1 p-3 cols-span-1") {
+                                table(class="grow-0 border border-separate border-spacing-2 border border-2 border-double border-indigo-900 p-5 text-center") {
+                                    thead() {
+                                        tr() {
+                                            th(class=DESC_CSS) {
+                                                "Nazwa drużyny"
+                                            }
+                                            th(class=DESC_CSS) {
+                                                "Ilość zagranych meczy"
+                                            }
+                                        }
+                                    }
+                                    tbody() {
+                                        Indexed(
+                                            iterable=iterable_history,
+                                            view = |cx, data| view! {
+                                                cx,
+                                                tr() {
+                                                    td(class="border border-indigo-600 p-3") {
+                                                        a(class="hover:text-green-600", href=format!("/team/{}", data.0)) {
+                                                            (data.1)
+                                                        }
+                                                    }
+                                                    td(class=VAL_CSS) {
+                                                        (data.2)
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    view! {
+                        cx,
+                    
+                    }
+                }
+            )
+            div(class="h-auto w-auto") {}
         }
     }
 }

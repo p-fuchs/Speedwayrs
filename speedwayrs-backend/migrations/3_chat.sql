@@ -1,6 +1,7 @@
 CREATE TABLE application.chat (
-    id BIGSERIAL PRIMARY KEY,
-    msg TEXT NOT NULL,
-    issue_date TIMESTAMPTZ NOT NULL,
-    user_id uuid REFERENCES application.user_sessions NOT NULL
+  username VARCHAR(50) REFERENCES application.users NOT NULL,
+  time TIMESTAMPTZ NOT NULL,
+  message TEXT NOT NULL,
+
+  CONSTRAINT chat_pk PRIMARY KEY (username, time, message)
 );
