@@ -45,6 +45,8 @@ impl<'a> ApplicationData<'a> {
 pub enum ApplicationRoute {
     #[to("/")]
     Home,
+    #[to("/home")]
+    HomeReference,
     #[to("/login")]
     Login,
     #[to("/signup")]
@@ -125,6 +127,16 @@ fn start_application<G: Html>(cx: Scope) -> View<G> {
                                     view! {
                                         cx,
                                         PlayersPage()
+                                    }
+                                }
+                                ApplicationRoute::Home | ApplicationRoute::HomeReference => {
+                                    view! {
+                                        cx,
+                                        div(class="h-full w-full text-center") {
+                                            a(class="text-9xl text-black") {
+                                                "WITAM NA STRONIE!"
+                                            }
+                                        }
                                     }
                                 }
                                 ApplicationRoute::Team {team_id} => {

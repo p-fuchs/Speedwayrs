@@ -63,9 +63,6 @@ pub fn Navbar<'a, G: Html>(cx: Scope<'a>, data: ApplicationData<'a>) -> View<G> 
                         let username_ref = data_username.as_ref().as_ref().unwrap().to_owned();
 
                         view! {cx,
-                            a(class="hover:text-green-700", href="/dashboard") {
-                                "Dashboard"
-                            }
                             button(class="hover:text-rose-700", on:click=logout_button) {
                                 "Logout"
                             }

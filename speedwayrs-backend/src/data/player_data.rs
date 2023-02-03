@@ -4,6 +4,8 @@ use serde::{Serialize, Deserialize};
 use speedwayrs_types::PlayerResult;
 use sqlx::PgPool;
 use std::sync::Arc;
+use axum::Extension;
+use crate::session::AuthStatus;
 
 #[derive(Deserialize)]
 pub struct GetPlayerInfo {
@@ -19,7 +21,8 @@ struct PlayerInfo {
     stars: u32,
     accidents: u16,
     former_teams: Vec<(i32, String, u16)>,
-    name: String
+    name: String,
+    user_like: Option<bool>
 }
 
 struct PlayerStats {
@@ -28,7 +31,15 @@ struct PlayerStats {
     one_points: u32,
     zero_points: u32,
     stars: u32,
-    accidents: u16 
+    accidents: u16
+}
+
+async fn check_player_like(db: &PgPool, username: &str, player_id: i32) -> Result<bool, sqlx::Error> {
+    let query = sqlx::query_file!("queries/utils/check_like_player.sql", username, player_id)
+        .fetch_optional(db)
+        .await?;
+
+    Ok(query.is_some())
 }
 
 async fn get_player_stats(db: &PgPool, id: i32) -> Result<PlayerStats, sqlx::Error> {
@@ -90,7 +101,23 @@ async fn get_player_name(db: &PgPool, id: i32) -> Result<Option<String>, sqlx::E
     Ok(query.name)
 }
 
-pub async fn get_player_data(State(db): State<Arc<PgPool>>, Json(info): Json<GetPlayerInfo>) -> impl IntoResponse {
+pub async fn get_player_data(State(db): State<Arc<PgPool>>, Extension(auth_info): Extension<Arc<AuthStatus>>, Json(info): Json<GetPlayerInfo>) -> impl IntoResponse {
+    let player_like = match auth_info.as_ref() {
+        AuthStatus::Authenticated(user) => {
+            match check_player_like(db.as_ref(), &user, info.player).await {
+                Ok(like) => Some(like),
+                Err(e) => {
+                    tracing::error!("Error returned while querying database about player like. Error = [{e:?}]");
+
+                    return (StatusCode::INTERNAL_SERVER_ERROR).into_response();
+                }
+            }
+        }
+        AuthStatus::NonAuthenticated => {
+            None
+        }
+    };
+
     let player_name = match get_player_name(db.as_ref(), info.player).await {
         Ok(None) => {
             return (StatusCode::NOT_FOUND).into_response();
@@ -129,7 +156,8 @@ pub async fn get_player_data(State(db): State<Arc<PgPool>>, Json(info): Json<Get
         stars: player_stats.stars,
         accidents: player_stats.accidents,
         former_teams,
-        name: player_name
+        name: player_name,
+        user_like: player_like 
     };
 
     (StatusCode::OK, Json(json_response)).into_response()
