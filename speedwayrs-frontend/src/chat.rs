@@ -107,8 +107,8 @@ pub fn ChatPage<'a, G: Html>(cx: Scope<'a>, props: ChatProps<'a>) -> View<G> {
 
     view! {
         cx,
-        div(class="flex w-full h-full bg-indigo-200 justify-center") {
-            div(class="basis-1/2 grid auto-rows-auto overflow-scroll static") {
+        div(class="flex flex-col w-full h-screen bg-indigo-200 justify-center") {
+            div(class="basis-1/2 grid h-1/2 auto-rows-auto overflow-scroll static justify-center items-center grow") {
                 img(class="absolute right-0 mt-2 mr-2 cursor-pointer", width=50, heigh=50,
                     src="https://www.svgrepo.com/show/382076/reload-data-infographic-update-element-graph.svg", on:click=reload_chat) {}
                 Indexed(
@@ -155,6 +155,7 @@ pub fn ChatPage<'a, G: Html>(cx: Scope<'a>, props: ChatProps<'a>) -> View<G> {
                     )
                 }
             }
+            div(class="shrink") {}
         }
     }    
 }

@@ -1,0 +1,21 @@
+services:
+  postgres_db:
+    build:
+      context: .
+      dockerfile: DockerfileDatabase
+    environment:
+      POSTGRES_PASSWORD: rootpassword
+      POSTGRES_USER: rootuser 
+      POSTGRES_DATABASE: speedwayrs
+    restart: always
+
+  loader:
+    build:
+      context: .
+      dockerfile: DockerfileLoader
+    environment:
+      LOADER_POSTGRES: postgres://srs_backend:srs-dev@postgres_db:5432/speedwayrs
+    depends_on:
+      - postgres_db
+    links:
+      - postgres_db

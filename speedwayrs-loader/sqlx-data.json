@@ -1,0 +1,216 @@
+{
+  "db": "PostgreSQL",
+  "14fbf9c6c8fae66492c363722c8e0d92f4100bed99e44a79eccbc09b3be35518": {
+    "describe": {
+      "columns": [
+        {
+          "name": "stadium_id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT\n  stadium_id\nFROM\n  application.stadium\nWHERE\n  location_desc = $1; \n"
+  },
+  "20d73cbdbaecf40a5abb99d6796a1e6f6b4980fe6b5db63a0fa4543e451d0eb7": {
+    "describe": {
+      "columns": [
+        {
+          "name": "team_id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT\n  team_id\nFROM\n  application.team\nWHERE\n  team_name = $1;\n"
+  },
+  "2b96a87c82741123c29641f8ebf412793d92801ccb161bb91e4ec1b4db99fae0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "team_id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Varchar"
+        ]
+      }
+    },
+    "query": "INSERT INTO application.team (team_name)\nVALUES ($1)\nRETURNING team_id;\n"
+  },
+  "30e8cf081b32fb4a7a55733d36b13ed69bdcb412599cc55c6efd53d9f73177ac": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Int4",
+          "Int4"
+        ]
+      }
+    },
+    "query": "INSERT INTO application.game_team (player, team, game)\nVALUES ($1, $2, $3);\n"
+  },
+  "35806ac287d59ef88d6d88d5b404c3c77a6d5cfc0697b4a4d45895e551271958": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Int4",
+          "Int4",
+          "Varchar"
+        ]
+      }
+    },
+    "query": "INSERT INTO application.player_score (game_id, player_id, round, score)\nVALUES ($1, $2, $3, $4);\n"
+  },
+  "50c181da6e02985e226787b8b9423a2cd3af4acc4ee012029a199666a7426ec6": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int4",
+          "Varchar"
+        ]
+      }
+    },
+    "query": "INSERT INTO application.squad (run, player_id, result, color)\nVALUES ($1, $2, $3, NULL);\n"
+  },
+  "58568c5cc61a1d10a3ee90fe40645ac9e31aa90e32092b0a4db00bdd80942ea2": {
+    "describe": {
+      "columns": [
+        {
+          "name": "player_id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT\n  player.player_id\nFROM\n  application.player\nWHERE\n  player.name = $1 AND player.sname = $2;\n"
+  },
+  "e5398ec033d72a74b3c75e4f69919ae59c20c772e0a0a4e23eb2b75a9e013cbd": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Int4",
+          "Int4",
+          "Int4"
+        ]
+      }
+    },
+    "query": "INSERT INTO application.run (run_position, time_integer, time_decimal, game_id)\nVALUES ($1, $2, $3, $4)\nRETURNING id;\n"
+  },
+  "e9537eb7d126478c7aa9a60d17e680c0cab6bb8a8904b77717af2d2dbeb2b8c3": {
+    "describe": {
+      "columns": [
+        {
+          "name": "player_id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Varchar",
+          "Varchar"
+        ]
+      }
+    },
+    "query": "INSERT INTO application.player (name, sname)\nVALUES ($1, $2)\nRETURNING player_id;\n"
+  },
+  "ef3b3a03a0102ff7a6866861e1753131e241f7c22925ec9a5ed673c2634eb976": {
+    "describe": {
+      "columns": [
+        {
+          "name": "game_id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Int4",
+          "Int4",
+          "Int4",
+          "Int4",
+          "Timestamptz"
+        ]
+      }
+    },
+    "query": "INSERT INTO application.game (team_1, score_1, score_2, team_2, place, game_date)\nVALUES ($1, $2, $3, $4, $5, $6)\nRETURNING game_id;\n"
+  },
+  "f5af65e5191e14077fd5b7cb667a9aedaffd41a3a2812b7601cb5b2deadbe84d": {
+    "describe": {
+      "columns": [
+        {
+          "name": "stadium_id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "INSERT INTO application.stadium (location_desc)\nVALUES ($1)\nRETURNING stadium_id;\n"
+  }
+}

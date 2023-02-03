@@ -16,6 +16,7 @@ use crate::{ApplicationData, fetch_json_data};
 #[derive(Deserialize, Debug, Clone)]
 struct Player {
     name: String,
+    sname: String,
     id: i32,
 }
 
@@ -86,13 +87,14 @@ pub fn PlayersPage<'a, G: Html>(cx: Scope<'a>) -> View<G> {
             Some(vec) => {
                 let table_fragment = View::new_fragment(vec.iter().map(|x| {
                     let name = x.name.to_string();
+                    let surname = x.sname.to_string();
                     let id = x.id;
 
                     view! {cx, 
                         tr() {
                             td(class="border-separate border border-slate-400 w-80 shadow-sm bg-indigo-100 text-center") {
                                 a(class="hover:text-sky-700", href=format!("/player/{}", id)) {
-                                    (name)
+                                    (format!("{name} {surname}"))
                                 }
                             }
                         }
@@ -173,6 +175,7 @@ pub fn PlayersPage<'a, G: Html>(cx: Scope<'a>) -> View<G> {
 }
 
 const PLAYER_INFO_ENDPOINT: &str = const_format::formatcp!("{}/data/player_info", crate::SERVER_ADDRESS);
+const PLAYER_LIKE_ENDPOINT: &str = const_format::formatcp!("{}/utils/like", crate::SERVER_ADDRESS);
 
 #[derive(Prop)]
 pub struct PlayerPageProps<'a> {
@@ -189,7 +192,8 @@ struct PlayerInfo {
     stars: u32,
     accidents: u32,
     former_teams: Vec<(i32, String, u32)>,
-    name: String
+    name: String,
+    user_like: Option<bool>
 }
 
 async fn get_player_info(player_id: i32, info: &Signal<Option<PlayerInfo>>) {
@@ -198,6 +202,30 @@ async fn get_player_info(player_id: i32, info: &Signal<Option<PlayerInfo>>) {
     });
 
     info.set(fetch_json_data(PLAYER_INFO_ENDPOINT, &body).await);
+}
+
+#[derive(Deserialize)]
+struct LikeResponse {
+    team_like: Option<bool>,
+    player_like: Option<bool>
+}
+
+async fn post_like(player_id: i32, player_info: &Signal<Option<PlayerInfo>>) {
+    let body = serde_json::json!({
+        "player_id": player_id
+    });
+
+    let response: Option<LikeResponse> = fetch_json_data(PLAYER_LIKE_ENDPOINT, &body).await;
+
+    if let Some(info) = response {
+        let player_new_info = player_info.get().as_ref().clone();
+
+        if let Some(mut player_new_info) = player_new_info {
+            player_new_info.user_like = info.player_like;
+
+            player_info.set(Some(player_new_info));
+        }
+    }
 }
 
 const DESC_CSS: &str = "border border-indigo-800 p-3 bg-indigo-700/50";
@@ -237,9 +265,24 @@ pub fn PlayerPage<'a, G: Html>(cx: Scope<'a>, props: PlayerPageProps<'a>) -> Vie
         }
     });
 
+    let like_selector = create_selector(cx, || {
+        match player_info.get().as_ref() {
+            None => None,
+            Some(info) => {
+                info.user_like.clone()
+            }
+        }
+    });
+
+    let update_like = move |_| {
+        spawn_local_scoped(cx, async move {
+            post_like(props.player_id, player_info).await;
+        })
+    };
+
     view! {
         cx,
-        div(class="flex flex-col bg-indigo-200 h-screen w-screen") {
+        div(class="flex flex-col bg-indigo-200 h-screen w-screen static") {
             (
                 if let Some(info) = player_info.get().as_ref().clone() {
                     view! {
@@ -352,6 +395,34 @@ pub fn PlayerPage<'a, G: Html>(cx: Scope<'a>, props: PlayerPageProps<'a>) -> Vie
                 }
             )
             div(class="h-auto w-auto") {}
+            (
+                {
+                    match like_selector.get().as_ref() {
+                        None => {
+                            log::debug!("LIKED NONE");
+                            view! {cx , }
+                        },
+                        Some(liked) => {
+                            log::debug!("LIKED {liked}");
+                            if !liked {
+                                view! {
+                                    cx,
+                                    div(class="absolute right-10") {
+                                        img(class="cursor-pointer", src="https://i.imgur.com/8XUePqB.png", width=50, heigh=50, on:click=update_like) {}
+                                    }
+                                }
+                            } else {
+                                view! {
+                                    cx,
+                                    div(class="absolute right-10") {
+                                        img(class="cursor-pointer", src="https://i.imgur.com/QhLKbOT.png", width=50, heigh=50, on:click=update_like) {}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            )
         }
     }
 }

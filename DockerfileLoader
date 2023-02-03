@@ -1,0 +1,10 @@
+FROM rust:latest
+
+WORKDIR /loader
+COPY ./speedwayrs-types/ /speedwayrs-types/
+COPY ./speedwayrs-loader/ .
+COPY ./speedwayrs-backend/migrations/ ./migrations/
+
+RUN ["cargo", "build", "--release"]
+
+CMD ["cargo", "run", "--release"]
